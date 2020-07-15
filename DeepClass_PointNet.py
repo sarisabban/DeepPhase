@@ -29,31 +29,31 @@ y = data[data.columns[10::5]].values
 z = data[data.columns[11::5]].values
 r = data[data.columns[12::5]].values
 f = data[data.columns[13::5]].values
-# One-hot encode s
+# One-hot encode s      [Space Groups]
 categories = [sorted([x for x in range(1, 230+1)])]
 s = s.reshape(-1, 1)
 onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-# Normalise min/max ce
+# Normalise min/max ce  [Unit Cell Edges]
 mini = np.amin(ce)
 maxi = np.amax(ce)
 ce = (ce-mini)/(maxi-mini)
-# Normalise min/max ca
+# Normalise min/max ca  [Unit Cell Angles]
 mini = 90.0
 maxi = 180.0
 ca = (ca-mini)/(maxi-mini)
-# Normalise min/max x
+# Normalise min/max x   [X Coordinates]
 mini = -1
 maxi = 1
 x = (x-mini)/(maxi-mini)
-# Normalise min/max y
+# Normalise min/max y   [Y Coordinates]
 mini = -1
 maxi = 1
 y = (y-mini)/(maxi-mini)
-# Normalise min/max z
+# Normalise min/max z   [Z Coordinates]
 mini = -1
 maxi = 1
 z = (z-mini)/(maxi-mini)
-# Normalise min/max r
+# Normalise min/max r   [Resolution]
 mini = 0
 maxi = 3
 r = (r-mini)/(maxi-mini)
@@ -76,7 +76,6 @@ Xs_train, Xs_tests, Xu_train, Xu_tests, Xc_train, Xc_tests, Y_train, Y_tests =\
 Xs_train, Xs_valid, Xu_train, Xu_valid, Xc_train, Xc_valid, Y_train, Y_valid =\
 	train_test_split(Xs_train, Xu_train, Xc_train, Y_train, test_size=0.25)
 ''' Neural Network '''
-# Coordinates PointNet network: https://github.com/garyli1019/pointnet-keras
 shapeC = Coord.shape[1:]
 n_feat = shapeC[0]
 n_chan = shapeC[1]
