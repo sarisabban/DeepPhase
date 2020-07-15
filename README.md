@@ -1,5 +1,5 @@
 # DeepPhase
- Protein Crystal Classification Using Machine Learning
+ Protein structure classification from crystal structure
 
 ## Requirements:
 1. Get this script:
@@ -11,12 +11,7 @@
 `pip3 install numpy pandas sklearn keras tensorflow`
 
 ## Description:
-The first part of this project is to classify proteins from their X-Ray crystal reflection data.
-
-
-
-
-
+This project is an attempt to classify proteins from their X-Ray crystal reflection data.
 
 ### Compile Dataset:
 1. If you are going to compile the dataset yourself, use the following command to install conda and the required packages:
@@ -31,14 +26,8 @@ NOTE: This command will result in some perminant changes to your operating syste
 
 `python crystal.py class`
 
-For the classification dataset
-
-`python crystal.py phase`
-
-For the phase dataset
-
 ### Run Training:
 1. Perform training on the dataset using the following command:
 `python DeepClass.py`
 
-
+THIS PROJECT IS STILL A WORK IN PROGRESS...
