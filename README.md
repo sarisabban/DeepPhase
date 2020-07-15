@@ -6,7 +6,7 @@
 
 `git clone https://github.com/sarisabban/DeepPhase.git`
 
-2. To just run the neural network install the following packages:
+2. Install the required dependencies:
 
 `pip3 install numpy pandas sklearn keras tensorflow`
 
@@ -18,16 +18,18 @@ This project is an attempt to classify proteins from their X-Ray crystal reflect
 
 `python crystal.py setup`
 
-NOTE: This command will result in some perminant changes to your operating system setup to ensure the correct running of the required libraries.
+**NOTE:** This command will result in some perminant changes to your operating system setup to ensure the correct running of the required libraries.
 
-2. Download a list of PDB IDs from RCSB.org, make sure the all the IDs are in a single line separated by a ',' as per the RCSB standard.
+2. Download a list of PDB IDs from RCSB.org, make sure the all the IDs are in a single line separated by a comma as per the RCSB standard.
 
 3. Compile the dataset using the following command:
 
 `python crystal.py class`
 
+**NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
+
 ### Run Training:
 1. Perform training on the dataset using the following command:
 `python DeepClass.py`
 
-THIS PROJECT IS STILL A WORK IN PROGRESS...
+***THIS PROJECT IS STILL A WORK IN PROGRESS...***
