@@ -29,7 +29,7 @@ def setup():
 	os.chdir('./mc3/bin/')
 	os.system('./conda init bash')
 	os.sysrem('conda activate Cenv')
-	os.sysrem('pip3 install tqdm')
+	os.sysrem('pip3 install tqdm biopython')
 
 class ClassData():
 	''' Build a dataset for protein classification from x-ray diffraction '''
@@ -80,7 +80,7 @@ class ClassData():
 				nR = []
 				nF = []
 				for x, y, z, r, f in zip(X, Y, Z, R, F):
-					if r >= 3.0:
+					if r >= 10.0 or r <= 2.5:
 						continue
 					else:
 						nX.append(x)
@@ -223,7 +223,7 @@ class PhaseData():
 		nF = []
 		nP = []
 		for x, y, z, r, f, p in zip(X, Y, Z, R, F, P):
-			if r >= 3.0:
+			if r >= 10.0 or r <= 2.5:
 				continue
 			else:
 				nX.append(x)
@@ -299,6 +299,8 @@ def main():
 	elif sys.argv[1] == 'phase':
 		Phs = PhaseData()
 		Phs.run(IDs='Phase.txt')
+    elif sys.argv[1] == 'phase':
+        setup()
 	else:
 		print('\u001b[31m[-] Wrong argument\u001b[0m')
 
