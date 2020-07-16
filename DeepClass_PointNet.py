@@ -54,8 +54,8 @@ mini = -1
 maxi = 1
 z = (z-mini)/(maxi-mini)
 # Normalise min/max r   [Resolution]
-mini = 0
-maxi = 3
+mini = 2.5
+maxi = 10
 r = (r-mini)/(maxi-mini)
 # Final features
 Space = onehot_encoder.fit_transform(s)
