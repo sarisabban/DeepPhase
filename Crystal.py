@@ -164,7 +164,7 @@ class ClassData():
 				header.append(',X_{},Y_{},Z_{},Resolution_{},F-obs_{}'\
 				.format(i, i, i, i, i))
 			header = ''.join(header)
-		with open('dataset.csv', 'w') as f:
+		with open('DeepClass.csv', 'w') as f:
 			with open('temp', 'r') as t:
 				f.write(header + '\n')
 				for line in t: f.write(line)
@@ -286,7 +286,7 @@ class PhaseData():
 				header.append(',X_{},Y_{},Z_{},Resolution_{},F-obs_{},Phase{}'\
 				.format(i, i, i, i, i, i))
 			header = ''.join(header)
-		with open('dataset.csv', 'w') as f:
+		with open('DeepPhase.csv', 'w') as f:
 			with open('temp', 'r') as t:
 				f.write(header + '\n')
 				for line in t: f.write(line)
