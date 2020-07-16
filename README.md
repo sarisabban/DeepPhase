@@ -29,7 +29,11 @@ This project is an attempt to classify proteins from their X-Ray crystal reflect
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
 ### Run Training:
-1. Perform training on the dataset using the following command:
+1. It is best to use the dataset that I have compiled which you can download from [here]() (6 GB). Run the following command to uncompress the the dataset (60 GB):
+
+`xz -d DeepClass.csv.xz`
+
+2. Perform training on the dataset using the following command:
 `python DeepClass.py`
 
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
