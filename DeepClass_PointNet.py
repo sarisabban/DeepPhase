@@ -17,7 +17,7 @@ def warn(*args, **kwargs): pass
 warnings.warn = warn
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-data = pd.read_csv('dataset.csv')
+data = pd.read_csv('DeepClass.csv')
 data = data.fillna(0)
 data = utils.shuffle(data)
 ''' X features '''
