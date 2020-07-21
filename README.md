@@ -8,7 +8,7 @@
 
 2. Install the required dependencies:
 
-`pip3 install numpy pandas sklearn keras tensorflow`
+`pip install numpy scipy==1.5.1 sklearn keras==2.3.1 tensorflow==2.2.0 pandas`
 
 ## Description:
 This project is an attempt to classify proteins from their X-Ray crystal reflection data.
