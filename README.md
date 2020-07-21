@@ -8,7 +8,15 @@
 
 2. Install the required dependencies:
 
-`pip install numpy scipy==1.5.1 sklearn keras==2.3.1 tensorflow==2.2.0 pandas`
+`module load cuda/10.0.130 anaconda3`
+
+`conda create -n MLenv -y`
+
+`source activate MLenv`
+
+`conda install numpy scipy==1.5.1 sklearn keras==2.3.1 tensorflow==2.2.0 pandas`
+
+`source deactivate MLenv`
 
 ## Description:
 This project is an attempt to classify proteins from their X-Ray crystal reflection data.
