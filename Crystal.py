@@ -164,11 +164,26 @@ class ClassData():
 				header.append(',X_{},Y_{},Z_{},Resolution_{},F-obs_{}'\
 				.format(i, i, i, i, i))
 			header = ''.join(header)
-		with open('DeepClass.csv', 'w') as f:
+		with open('temp2.csv', 'w') as f:
 			with open('temp', 'r') as t:
 				f.write(header + '\n')
 				for line in t: f.write(line)
 		os.remove('temp')
+		with open('temp2') as f:
+			with open('DeepClass.csv'), 'a') as F:
+				first_line = f.readline()
+				F.write(first_line)
+				size = len(first_line.strip().split(','))
+				for line in tqdm.tqdm(f):
+					line = line.strip().split(',')
+					gap = size - len(line)
+					for zero in range(gap):
+						line.append('0')
+					new_line = ','.join(line)
+					F.write(new_line + '\n')
+					time.sleep(1)
+					print('YES')
+				os.remove('temp2')
 
 class PhaseData():
 	''' Build a dataset for phase calculation from x-ray diffractions '''
@@ -286,12 +301,27 @@ class PhaseData():
 				header.append(',X_{},Y_{},Z_{},Resolution_{},F-obs_{},Phase{}'\
 				.format(i, i, i, i, i, i))
 			header = ''.join(header)
-		with open('DeepPhase.csv', 'w') as f:
+		with open('temp2.csv', 'w') as f:
 			with open('temp', 'r') as t:
 				f.write(header + '\n')
 				for line in t: f.write(line)
 		os.remove('temp')
-		
+		with open('temp2') as f:
+			with open('DeepPhase.csv'), 'a') as F:
+				first_line = f.readline()
+				F.write(first_line)
+				size = len(first_line.strip().split(','))
+				for line in tqdm.tqdm(f):
+					line = line.strip().split(',')
+					gap = size - len(line)
+					for zero in range(gap):
+						line.append('0')
+					new_line = ','.join(line)
+					F.write(new_line + '\n')
+					time.sleep(1)
+					print('YES')
+				os.remove('temp2')
+
 def main():
 	if sys.argv[1] == 'class':
 		Cls = ClassData()
