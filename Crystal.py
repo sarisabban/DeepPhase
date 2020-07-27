@@ -299,7 +299,7 @@ def main():
 	elif sys.argv[1] == 'phase':
 		Phs = PhaseData()
 		Phs.run(IDs='Phase.txt')
-    elif sys.argv[1] == 'setup':
+	elif sys.argv[1] == 'setup':
 		setup()
 	else:
 		print('\u001b[31m[-] Wrong argument\u001b[0m')
