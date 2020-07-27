@@ -14,7 +14,7 @@
 
 `source activate MLenv`
 
-`conda install dask==2.20.0 pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1`
+`conda install dask==2.20.0 "dask[dataframe]" pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1`
 
 `source deactivate MLenv`
 
