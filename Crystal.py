@@ -181,8 +181,6 @@ class ClassData():
 						line.append('0')
 					new_line = ','.join(line)
 					F.write(new_line + '\n')
-					time.sleep(1)
-					print('YES')
 				os.remove('temp2')
 
 class PhaseData():
@@ -318,8 +316,6 @@ class PhaseData():
 						line.append('0')
 					new_line = ','.join(line)
 					F.write(new_line + '\n')
-					time.sleep(1)
-					print('YES')
 				os.remove('temp2')
 
 def main():
