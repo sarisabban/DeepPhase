@@ -6,6 +6,7 @@ import tensorflow as tf
 from numpy import array
 from numpy import argmax
 from sklearn import utils
+#import dask.dataframe as dd
 from keras import Input, Model
 from keras.optimizers import Adam
 from keras.models import Sequential
@@ -20,6 +21,7 @@ warnings.warn = warn
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 data = pd.read_csv('DeepClass.csv')
+#data = dd.read_csv('DeepClass.csv')
 data = data.fillna(0)
 data = utils.shuffle(data)
 ''' X features '''
