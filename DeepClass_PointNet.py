@@ -1,4 +1,5 @@
 import os
+import h5py
 import warnings
 import numpy as np
 import pandas as pd
@@ -17,58 +18,15 @@ def warn(*args, **kwargs): pass
 warnings.warn = warn
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-data = pd.read_csv('DeepClass.csv')
-data = utils.shuffle(data)
-''' X features '''
-s = data[data.columns[2]].values
-ce= data[data.columns[3:6]].values
-ca= data[data.columns[6:9]].values
-x = data[data.columns[9::5]].values
-y = data[data.columns[10::5]].values
-z = data[data.columns[11::5]].values
-r = data[data.columns[12::5]].values
-f = data[data.columns[13::5]].values
-# One-hot encode s      [Space Groups]
-categories = [sorted([x for x in range(1, 230+1)])]
-s = s.reshape(-1, 1)
-onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-# Normalise min/max ce  [Unit Cell Edges]
-mini = np.amin(ce)
-maxi = np.amax(ce)
-ce = (ce-mini)/(maxi-mini)
-# Normalise min/max ca  [Unit Cell Angles]
-mini = 90.0
-maxi = 180.0
-ca = (ca-mini)/(maxi-mini)
-# Normalise min/max x   [X Coordinates]
-mini = -1
-maxi = 1
-x = (x-mini)/(maxi-mini)
-# Normalise min/max y   [Y Coordinates]
-mini = -1
-maxi = 1
-y = (y-mini)/(maxi-mini)
-# Normalise min/max z   [Z Coordinates]
-mini = -1
-maxi = 1
-z = (z-mini)/(maxi-mini)
-# Normalise min/max r   [Resolution]
-mini = 2.5
-maxi = 10
-r = (r-mini)/(maxi-mini)
-# Final features
-Space = onehot_encoder.fit_transform(s)
-UnitC = np.concatenate([ce, ca], axis=1)
-Coord = np.array([x, y, z, r, f])
-Coord = np.swapaxes(Coord, 0, 2)
-Coord = np.swapaxes(Coord, 0, 1)
-''' Y labels '''
-labels = data[data.columns[1]].values
-label_encoder = LabelEncoder()
-integer_encoded = label_encoder.fit_transform(labels)
-onehot_encoder = OneHotEncoder(sparse=False)
-integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
-Y = onehot_encoder.fit_transform(integer_encoded)
+
+with h5py.File('Y.hdf5', 'w') as Yh:
+	dset = Yh.create_dataset('default', data=y)
+with h5py.File('Space.hdf5', 'w') as Sh:
+	dset = Sh.create_dataset('default', data=Space)
+with h5py.File('UnitC.hdf5', 'w') as Uh:
+	dset = Uh.create_dataset('default', data=UnitC)
+with h5py.File('Coord.hdf5', 'w') as Ch:
+	dset = Ch.create_dataset('default', data=Coord)
 # Split train/tests/valid
 Xs_train, Xs_tests, Xu_train, Xu_tests, Xc_train, Xc_tests, Y_train, Y_tests =\
 	train_test_split(Space, UnitC, Coord, Y, test_size=0.20)
