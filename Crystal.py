@@ -1,7 +1,7 @@
 import os
 import sys
+import h5py
 import random
-import pickle
 import numpy as np
 import urllib.request
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
@@ -398,14 +398,14 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, F = [], [], [], [], [], [], [], []
 	# 13. Serialise tensors
-	with open('Y.pickle', 'wb') as Yp:
-		pickle.dump(y, Yp)
-	with open('Space.pickle', 'wb') as Sp:
-		pickle.dump(Space, Sp)
-	with open('UnitC.pickle', 'wb') as Up:
-		pickle.dump(UnitC, Up)
-	with open('Coord.pickle', 'wb') as Cp:
-		pickle.dump(Coord, Cp)
+	with h5py.File('Y.hdf5', 'w') as Yh:
+		dset = Yh.create_dataset('default', data=y)
+	with h5py.File('Space.hdf5', 'w') as Sh:
+		dset = Sh.create_dataset('default', data=Space)
+	with h5py.File('UnitC.hdf5', 'w') as Uh:
+		dset = Uh.create_dataset('default', data=UnitC)
+	with h5py.File('Coord.hdf5', 'w') as Ch:
+		dset = Ch.create_dataset('default', data=Coord)
 
 Vectorise_Phase():
 	'''
