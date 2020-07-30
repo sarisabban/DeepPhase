@@ -1,6 +1,10 @@
 import os
 import sys
+import random
+import pickle
+import numpy as np
 import urllib.request
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 def setup():
 	'''
@@ -291,6 +295,7 @@ class PhaseData():
 				f.write(header + '\n')
 				for line in t: f.write(line)
 		os.remove('temp')
+
 def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	'''
 	Since the .csv file cannot be loaded into RAM
@@ -403,6 +408,13 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 		pickle.dump(Coord, Cp)
 
 Vectorise_Phase():
+	'''
+	Since the .csv file cannot be loaded into RAM
+	even that of a supercomputer, this function
+	vectorises the dataset normalises it as well
+	as construct the final tensors and export the
+	result as a serial.
+	'''
 	print('Not Yet Implemented')
 
 def main():
