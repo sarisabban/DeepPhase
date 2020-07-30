@@ -291,6 +291,119 @@ class PhaseData():
 				f.write(header + '\n')
 				for line in t: f.write(line)
 		os.remove('temp')
+def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
+	'''
+	Since the .csv file cannot be loaded into RAM
+	even that of a supercomputer, this function
+	vectorises the dataset normalises it as well
+	as construct the final tensors and export the
+	result as a serial.
+	'''
+	# 1. Find number of rows
+	rows = len(open(filename).readlines()) - 1
+	cols = len(open(filename).readline().strip().split(','))
+	# 2. Generate a list of random number of rows
+	lines = list(range(1, rows + 1))
+	random.shuffle(lines)
+	# 3. Divide into train/tests/valid sets
+	T = int((rows*60)/100)
+	t = int(((rows*40)/100)/2)
+	train = lines[:T]
+	temp = lines[T:]
+	tests = temp[:t]
+	valid = temp[t:]
+	# 4. Open CSV file
+	File = open(filename)
+	# 5. Import a single row
+	all_lines_variable = File.readlines()
+	L  = []
+	S  = []
+	UCe= []
+	UCa= []
+	X  = []
+	Y  = []
+	Z  = []
+	R  = []
+	F  = []
+	for i in lines: # lines for whole dataset or replace with train/tests/valid
+		# 6. Isolate labels and crystal data columns
+		line= all_lines_variable[i]
+		line= line.strip().split(',')
+		L.append(np.array(str(line[1]), dtype=str))
+		S.append(np.array(int(line[2]), dtype=ip))
+		UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
+		UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
+		# 7. Isolate points data columns
+		Pts = line[9:]
+		# 8. Extend points data with zeros
+		Pts = [float(i) for i in Pts]
+		dif = cols - len(Pts)
+		Pts.extend([0.0]*dif)
+		# 9. Isolate different points data
+		X.append(np.array(Pts[0::5], dtype=fp))
+		Y.append(np.array(Pts[1::5], dtype=fp))
+		Z.append(np.array(Pts[2::5], dtype=fp))
+		R.append(np.array(Pts[3::5], dtype=fp))
+		F.append(np.array(Pts[4::5]+[Pts[-1]], dtype=fp))
+	# 10. Construct matrices
+	L  = np.array(L)
+	S  = np.array(S)
+	UCe= np.array(UCe)
+	UCa= np.array(UCa)
+	X  = np.array(X)
+	Y  = np.array(Y)
+	Z  = np.array(Z)
+	R  = np.array(R)
+	F  = np.array(F)
+	# 11. One-Hot encoding and normalisation F [F-Obs] is already normalised
+	''' Y labels '''
+	label_encoder = LabelEncoder()
+	integer_encoded = label_encoder.fit_transform(L)
+	onehot_encoder = OneHotEncoder(sparse=False)
+	integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
+	y = onehot_encoder.fit_transform(integer_encoded)
+	''' X features '''
+	categories = [sorted([x for x in range(1, 230+1)])]
+	S = S.reshape(-1, 1)
+	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+	S = onehot_encoder.fit_transform(S) # One-hot encode S      [Space Groups]
+	mini = np.amin(UCe)
+	maxi = np.amax(UCe)
+	UCe = (UCe-mini)/(maxi-mini)        # Normalise min/max UCe  [Unit Cell Edges]
+	mini = 90.0
+	maxi = 180.0
+	UCa = (UCa-mini)/(maxi-mini)        # Normalise min/max UCa  [Unit Cell Angles]
+	mini = -1
+	maxi = 1
+	X = (X-mini)/(maxi-mini)            # Normalise min/max X   [X Coordinates]
+	mini = -1
+	maxi = 1
+	Y = (Y-mini)/(maxi-mini)            # Normalise min/max Y   [Y Coordinates]
+	mini = -1
+	maxi = 1
+	Z = (Z-mini)/(maxi-mini)            # Normalise min/max Z   [Z Coordinates]
+	mini = 2.5
+	maxi = 10
+	R = (R-mini)/(maxi-mini)            # Normalise min/max R   [Resolution]
+	# 12. Construct tensors - final features
+	Space = S
+	UnitC = np.concatenate([UCe, UCa], axis=1)
+	Coord = np.array([X, Y, Z, R, F])
+	Coord = np.swapaxes(Coord, 0, 2)
+	Coord = np.swapaxes(Coord, 0, 1)
+	S, UCe, UCa, X, Y, Z, R, F = [], [], [], [], [], [], [], []
+	# 13. Serialise tensors
+	with open('Y.pickle', 'wb') as Yp:
+		pickle.dump(y, Yp)
+	with open('Space.pickle', 'wb') as Sp:
+		pickle.dump(Space, Sp)
+	with open('UnitC.pickle', 'wb') as Up:
+		pickle.dump(UnitC, Up)
+	with open('Coord.pickle', 'wb') as Cp:
+		pickle.dump(Coord, Cp)
+
+Vectorise_Phase():
+	print('Not Yet Implemented')
 
 def main():
 	if sys.argv[1] == 'class':
@@ -301,6 +414,10 @@ def main():
 		Phs.run(IDs='Phase.txt')
 	elif sys.argv[1] == 'setup':
 		setup()
+	elif sys.argv[1] == 'vectorise_class':
+		Vectorise_Class()
+	elif sys.argv[1] == 'vectorise_phase':
+		Vectorise_Phase()
 	else:
 		print('\u001b[31m[-] Wrong argument\u001b[0m')
 
