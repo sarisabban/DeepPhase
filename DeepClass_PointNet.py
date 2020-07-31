@@ -18,15 +18,14 @@ def warn(*args, **kwargs): pass
 warnings.warn = warn
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-
 with h5py.File('Y.hdf5', 'w') as Yh:
-	dset = Yh.create_dataset('default', data=y)
+	Y = Yh['default'][()]
 with h5py.File('Space.hdf5', 'w') as Sh:
-	dset = Sh.create_dataset('default', data=Space)
+	Space = Sh['default'][()]
 with h5py.File('UnitC.hdf5', 'w') as Uh:
-	dset = Uh.create_dataset('default', data=UnitC)
+	UnitC = Uh['default'][()]
 with h5py.File('Coord.hdf5', 'w') as Ch:
-	dset = Ch.create_dataset('default', data=Coord)
+	Coord = Ch['default'][()]
 # Split train/tests/valid
 Xs_train, Xs_tests, Xu_train, Xu_tests, Xc_train, Xc_tests, Y_train, Y_tests =\
 	train_test_split(Space, UnitC, Coord, Y, test_size=0.20)
