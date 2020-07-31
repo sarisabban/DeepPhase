@@ -34,6 +34,10 @@ This project is an attempt to classify proteins from their X-Ray crystal reflect
 
 `python Crystal.py class`
 
+4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them, that way the dataset can be loaded. Each tensor will be a separate file.
+
+`python Crystal.py vectorise_class`
+
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
 ### Run Training:
