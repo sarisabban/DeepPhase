@@ -15,18 +15,17 @@ from keras.layers import BatchNormalization, Lambda, Dropout
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.metrics import classification_report, confusion_matrix
 from keras.layers import Dense, Conv1D, Flatten, MaxPool1D, concatenate, Reshape
-
 def warn(*args, **kwargs): pass
 warnings.warn = warn
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-with h5py.File('Y.hdf5', 'w') as Yh:
+with h5py.File('Y.hdf5', 'r') as Yh:
 	Y = Yh['default'][()]
-with h5py.File('Space.hdf5', 'w') as Sh:
+with h5py.File('Space.hdf5', 'r') as Sh:
 	Space = Sh['default'][()]
-with h5py.File('UnitC.hdf5', 'w') as Uh:
+with h5py.File('UnitC.hdf5', 'r') as Uh:
 	UnitC = Uh['default'][()]
-with h5py.File('Coord.hdf5', 'w') as Ch:
+with h5py.File('Coord.hdf5', 'r') as Ch:
 	Coord = Ch['default'][()]
 # Split train/tests/valid
 Xs_train, Xs_tests, Xu_train, Xu_tests, Xc_train, Xc_tests, Y_train, Y_tests =\
