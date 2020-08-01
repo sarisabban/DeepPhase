@@ -367,6 +367,7 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	onehot_encoder = OneHotEncoder(sparse=False)
 	integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
 	y = onehot_encoder.fit_transform(integer_encoded)
+	y = np.float16(y)
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
 	S = S.reshape(-1, 1)
