@@ -45,7 +45,10 @@ This project is an attempt to classify proteins from their X-Ray crystal reflect
 
 `xz -d DeepClass.csv.xz`
 
-2. Perform training on the dataset using the following command:
+2. Reduce the number of features and vectorise the dataset so it can fit into the supercomputer's RAM memory as well as function within TensorFlow's int32 tensor indexing limit.
+`python DeepClass.py vectorise_class_dim`
+
+3. Perform training on the dataset using the following command:
 `python DeepClass.py`
 
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
