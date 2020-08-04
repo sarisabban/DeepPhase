@@ -298,11 +298,9 @@ class PhaseData():
 
 def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	'''
-	Since the .csv file cannot be loaded into RAM
-	even that of a supercomputer, this function
-	vectorises the dataset normalises it as well
-	as construct the final tensors and export the
-	result as a serial.
+	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
+	this function vectorises the dataset normalises it as well as construct the
+	final tensors and export the result as a serial.
 	'''
 	# 1. Find number of rows
 	rows = len(open(filename).readlines()) - 1
@@ -408,16 +406,192 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	with h5py.File('Coord.hdf5', 'w') as Ch:
 		dset = Ch.create_dataset('default', data=Coord)
 
+def PCA(matrix, dim):
+	''' Reduce a matrix to dim dimensions '''
+	# Calculate the mean of each column
+	M = np.mean(matrix.T, axis=1)
+	# Center columns by subtracting column means
+	C = matrix - M
+	# Calculate covariance from centered matrix
+	V = np.cov(C.T)
+	# Eigendecomposition of covariance matrix
+	val, vec = np.linalg.eig(V)
+	# Pair Eigenvectors and Eigenvalues then sort them from high to low
+	eig_pairs = [(val[index], vec[:,index]) for index in range(len(val))]
+	try: eig_pairs.sort()
+	except: print('[-] ERROR: No ranking, all data is impotant.')
+	eig_pairs.reverse()
+	# Re-seperate the now sorted Eigendecomposition
+	eigval_sorted = [eig_pairs[index][0] for index in range(len(val))]
+	eigvec_sorted = [eig_pairs[index][1] for index in range(len(val))]
+	# Project data and reduce to dim dimensions
+	P = np.array(eigvec_sorted[0:dim])
+	P_reduced = np.dot(C, P.T)
+	return(P_reduced)
+
+def SVD(matrix, dim):
+	''' Reduce a matrix to dim dimensions '''
+	# Singular-value decomposition
+	U, s, VT = np.linalg.svd(matrix)
+	# Create m x n Sigma matrix
+	Sigma = np.zeros((matrix.shape[0], matrix.shape[1]))
+	# Populate Sigma with n x n diagonal matrix
+	Sigma[:matrix.shape[0], :matrix.shape[0]] = np.diag(s)
+	# Reduce to dim dimensions
+	Sigma = Sigma[:, :dim]
+	VT = VT[:dim, :]
+	# Reconstruct
+	B = U.dot(Sigma.dot(VT))
+	# Transform
+	T = U.dot(Sigma)
+	return(T)
+
+def VectoriseClassNoFillPCASVD(filename='DeepClass.csv',
+							alg='PCA',
+							dim=10000,
+							fp=np.float64,
+							ip=np.int64):
+	'''
+	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
+	this function reduced the number of features using PCA or SVD, vectorises
+	the dataset normalises it as well as construct the final tensors and export
+	the result as a serial.
+	'''
+	# 1. Find number of rows
+	rows = len(open(filename).readlines()) - 1
+	cols = len(open(filename).readline().strip().split(','))
+	# 2. Generate a list of random number of rows
+	lines = list(range(1, rows + 1))
+	random.shuffle(lines)
+	# 3. Divide into train/tests/valid sets
+	T = int((rows*60)/100)
+	t = int(((rows*40)/100)/2)
+	train = lines[:T]
+	temp = lines[T:]
+	tests = temp[:t]
+	valid = temp[t:]
+	# 4. Open CSV file
+	File = open(filename)
+	# 5. Import a single row
+	all_lines_variable = File.readlines()
+	L  = []
+	S  = []
+	UCe= []
+	UCa= []
+	X  = []
+	Y  = []
+	Z  = []
+	R  = []
+	F  = []
+	for i in lines: # lines for whole dataset or replace with train/tests/valid
+		# 6. Isolate labels and crystal data columns
+		line= all_lines_variable[i]
+		line= line.strip().split(',')
+		L.append(np.array(str(line[1]), dtype=str))
+		S.append(np.array(int(line[2]), dtype=ip))
+		UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
+		UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
+		# 7. Isolate points data columns
+		Pts = line[9:]
+		# 8. Isolate different points data
+		x = np.array(Pts[0::5], dtype=fp)
+		y = np.array(Pts[1::5], dtype=fp)
+		z = np.array(Pts[2::5], dtype=fp)
+		r = np.array(Pts[3::5], dtype=fp)
+		f = np.array(Pts[4::5], dtype=fp)
+		# 9. Normalise Points, f [F-Obs] is already normalised
+		mini = -1
+		maxi = 1
+		x = (x-mini)/(maxi-mini) # Normalise min/max X [X Coordinates]
+		mini = -1
+		maxi = 1
+		y = (y-mini)/(maxi-mini) # Normalise min/max Y [Y Coordinates]
+		mini = -1
+		maxi = 1
+		z = (z-mini)/(maxi-mini) # Normalise min/max Z [Z Coordinates]
+		mini = 2.5
+		maxi = 10
+		r = (r-mini)/(maxi-mini) # Normalise min/max R [Resolution]
+		# 10. Principal component analysis of points
+		Example = np.stack([x, y, z, r, f])
+		if alg == 'PCA':   Example = PCA(Example, dim)
+		elif alg == 'SVD': Example = SVD(Example, dim)
+		x = Example[0]
+		y = Example[1]
+		z = Example[2]
+		r = Example[3]
+		f = Example[4]
+		X.append(x)
+		Y.append(y)
+		Z.append(z)
+		R.append(r)
+		F.append(f)
+	# 11. Construct matrices
+	L  = np.array(L)
+	S  = np.array(S)
+	UCe= np.array(UCe)
+	UCa= np.array(UCa)
+	X  = np.array(X)
+	Y  = np.array(Y)
+	Z  = np.array(Z)
+	R  = np.array(R)
+	F  = np.array(F)
+	# 12. One-Hot encoding and normalisation space groups and unit cells
+	''' Y labels '''
+	label_encoder = LabelEncoder()
+	integer_encoded = label_encoder.fit_transform(L)
+	onehot_encoder = OneHotEncoder(sparse=False)
+	integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
+	y = onehot_encoder.fit_transform(integer_encoded)
+	''' X features '''
+	categories = [sorted([x for x in range(1, 230+1)])]
+	S = S.reshape(-1, 1)
+	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+	S = onehot_encoder.fit_transform(S)# One-hot encode S     [Space Groups]
+	mini = np.amin(UCe)
+	maxi = np.amax(UCe)
+	UCe = (UCe-mini)/(maxi-mini)      # Normalise min/max UCe [Unit Cell Edges]
+	mini = 90.0
+	maxi = 180.0
+	UCa = (UCa-mini)/(maxi-mini)      # Normalise min/max UCa [Unit Cell Angles]
+	# 13. Construct tensors - final features
+	Space = S
+	UnitC = np.concatenate([UCe, UCa], axis=1)
+	Coord = np.array([X, Y, Z, R, F])
+	Coord = np.swapaxes(Coord, 0, 2)
+	Coord = np.swapaxes(Coord, 0, 1)
+	S, UCe, UCa, X, Y, Z, R, F = [], [], [], [], [], [], [], []
+	# 14. Serialise tensors
+	with h5py.File('Y.hdf5', 'w') as Yh:
+		dset = Yh.create_dataset('default', data=y)
+	with h5py.File('Space.hdf5', 'w') as Sh:
+		dset = Sh.create_dataset('default', data=Space)
+	with h5py.File('UnitC.hdf5', 'w') as Uh:
+		dset = Uh.create_dataset('default', data=UnitC)
+	with h5py.File('Coord.hdf5', 'w') as Ch:
+		dset = Ch.create_dataset('default', data=Coord)
+	print('Y:\t\t', y.shape,            '\t', y.dtype)
+	print('Spaces:\t\t', Space.shape,   '\t', Space.dtype)
+	print('Unit Cells:\t', UnitC.shape, '\t', UnitC.dtype)
+	print('Points:\t\t', Coord.shape,   '\t', Coord.dtype)
+
 Vectorise_Phase():
 	'''
-	Since the .csv file cannot be loaded into RAM
-	even that of a supercomputer, this function
-	vectorises the dataset normalises it as well
-	as construct the final tensors and export the
-	result as a serial.
+	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
+	this function vectorises the dataset normalises it as well as construct the
+	final tensors and export the result as a serial.
 	'''
 	print('Not Yet Implemented')
 
+def Vectorise_PhaseNoFillPCASVD():
+	'''
+	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
+	this function reduced the number of features using PCA or SVD, vectorises
+	the dataset normalises it as well as construct the final tensors and export
+	the result as a serial.
+	'''
+	print('Not Yet Implemented')
+	
 def main():
 	if sys.argv[1] == 'class':
 		Cls = ClassData()
@@ -429,8 +603,15 @@ def main():
 		setup()
 	elif sys.argv[1] == 'vectorise_class':
 		Vectorise_Class()
+	elif sys.argv[1] == 'vectorise_class_dim':
+		VectoriseClassNoFillPCASVD('DeepClass.csv', 'SVD', 10000)	
 	elif sys.argv[1] == 'vectorise_phase':
 		Vectorise_Phase()
+	elif sys.argv[1] == 'vectorise_phase_dim':
+		Vectorise_PhaseNoFillPCASVD()
+	
+
+
 	else:
 		print('\u001b[31m[-] Wrong argument\u001b[0m')
 
