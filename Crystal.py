@@ -459,7 +459,7 @@ def VectoriseClassNoFillPCASVD(filename='DeepClass.csv',
 	'''
 	# 1. Find number of rows
 	rows = len(open(filename).readlines()) - 1
-	cols = len(open(filename).readline().strip().split(','))
+	#cols = len(open(filename).readline().strip().split(','))
 	# 2. Generate a list of random number of rows
 	lines = list(range(1, rows + 1))
 	random.shuffle(lines)
