@@ -449,8 +449,8 @@ def SVD(matrix, dim):
 def VectoriseClassNoFillPCASVD(filename='DeepClass.csv',
 							alg='PCA',
 							dim=10000,
-							fp=np.float64,
-							ip=np.int64):
+							fp=np.float16,
+							ip=np.int16):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function reduced the number of features using PCA or SVD, vectorises
@@ -539,6 +539,7 @@ def VectoriseClassNoFillPCASVD(filename='DeepClass.csv',
 	onehot_encoder = OneHotEncoder(sparse=False)
 	integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
 	y = onehot_encoder.fit_transform(integer_encoded)
+	y = np.float16(y)
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
 	S = S.reshape(-1, 1)
