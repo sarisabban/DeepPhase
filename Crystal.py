@@ -516,16 +516,12 @@ def VectoriseClassNoFillPCASVD(filename='DeepClass.csv',
 		Example = np.stack([x, y, z, r, f])
 		if alg == 'PCA':   Example = PCA(Example, dim)
 		elif alg == 'SVD': Example = SVD(Example, dim)
-		x = Example[0]
-		y = Example[1]
-		z = Example[2]
-		r = Example[3]
-		f = Example[4]
-		X.append(x)
-		Y.append(y)
-		Z.append(z)
-		R.append(r)
-		F.append(f)
+		x, y, z, r, f = [], [], [], [], []
+		X.append(Example[0])
+		Y.append(Example[1])
+		Z.append(Example[2])
+		R.append(Example[3])
+		F.append(Example[4])
 	# 11. Construct matrices
 	L  = np.array(L)
 	S  = np.array(S)
