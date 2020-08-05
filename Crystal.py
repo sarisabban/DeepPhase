@@ -319,15 +319,7 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	File = open(filename)
 	# 5. Import a single row
 	all_lines_variable = File.readlines()
-	L  = []
-	S  = []
-	UCe= []
-	UCa= []
-	X  = []
-	Y  = []
-	Z  = []
-	R  = []
-	F  = []
+	L, S, UCe, UCa, X, Y, Z, R, F  = [], [], [], [], [], [], [], [], []
 	for i in lines: # lines for whole dataset or replace with train/tests/valid
 		# 6. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
@@ -474,15 +466,7 @@ def VectoriseClassNoFillPCASVD(filename='DeepClass.csv',
 	File = open(filename)
 	# 5. Import a single row
 	all_lines_variable = File.readlines()
-	L  = []
-	S  = []
-	UCe= []
-	UCa= []
-	X  = []
-	Y  = []
-	Z  = []
-	R  = []
-	F  = []
+	L, S, UCe, UCa, X, Y, Z, R, F  = [], [], [], [], [], [], [], [], []
 	for i in lines: # lines for whole dataset or replace with train/tests/valid
 		# 6. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
