@@ -284,13 +284,16 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 		# 6. Isolate points data columns
 		Pts = line[9:]
 		Pts = [float(i) for i in Pts]
-		# 7. Isolate different points data
+		# 7. Fill gaps with zeros
+		dif = 50000 - len(Pts)
+		Pts.extend([0.0]*dif)
+		# 8. Isolate different points data
 		X.append(np.array(Pts[0::5], dtype=fp))
 		Y.append(np.array(Pts[1::5], dtype=fp))
 		Z.append(np.array(Pts[2::5], dtype=fp))
 		R.append(np.array(Pts[3::5], dtype=fp))
 		F.append(np.array(Pts[4::5], dtype=fp))
-	# 8. Construct matrices
+	# 9. Construct matrices
 	L  = np.array(L)
 	S  = np.array(S)
 	UCe= np.array(UCe)
@@ -300,7 +303,7 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	Z  = np.array(Z)
 	R  = np.array(R)
 	F  = np.array(F)
-	# 9. One-Hot encoding and normalisation
+	# 10. One-Hot encoding and normalisation
 	''' Y labels '''
 	label_encoder = LabelEncoder()
 	integer_encoded = label_encoder.fit_transform(L)
@@ -334,14 +337,14 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	#mini = np.amin(F)
 	#maxi = np.amax(F)
 	#F = (F-mini)/(maxi-mini)        # Normalise min/max F   [F-Obs](Already Normalised)
-	# 10. Construct tensors - final features
+	# 11. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
 	Coord = np.array([X, Y, Z, R, F])
 	Coord = np.swapaxes(Coord, 0, 2)
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, F = [], [], [], [], [], [], [], []
-	# 11. Serialise tensors
+	# 12. Serialise tensors
 	with h5py.File('Y.hdf5', 'w') as Yh:
 		dset = Yh.create_dataset('default', data=y)
 	with h5py.File('Space.hdf5', 'w') as Sh:
@@ -350,7 +353,7 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 		dset = Uh.create_dataset('default', data=UnitC)
 	with h5py.File('Coord.hdf5', 'w') as Ch:
 		dset = Ch.create_dataset('default', data=Coord)
-
+	
 def main():
 	if sys.argv[1] == 'class':
 		Cls = ClassData()
