@@ -24,7 +24,7 @@ def setup():
 		shell=True).communicate(b'y\n')
 	os.chdir('./mc3/bin/')
 	os.system('./conda init bash')
-	os.sysrem('conda activate Cenv')
-	os.sysrem('pip3 install tqdm biopython h5py numpy sklearn')
+	os.system('conda activate Cenv')
+	os.system('conda install tqdm biopython h5py pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1')
 
 setup()
