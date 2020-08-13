@@ -274,7 +274,7 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	all_lines_variable = File.readlines()
 	L, S, UCe, UCa, X, Y, Z, R, F = [], [], [], [], [], [], [], [], []
 	for i in lines:
-		# 7. Isolate labels and crystal data columns
+		# 5. Isolate labels and crystal data columns
 		line = all_lines_variable[i]
 		line = line.strip().split(',')
 		L.append(np.array(str(line[1]), dtype=str))
