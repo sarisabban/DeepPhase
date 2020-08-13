@@ -24,7 +24,7 @@ This project is an attempt to classify proteins from their X-Ray crystal reflect
 ### Compile Dataset:
 1. If you are going to compile the dataset yourself, use the following command to install conda and the required packages:
 
-`python Crystal.py setup`
+`python setup.py`
 
 **NOTE:** This command will result in some perminant changes to your operating system setup to ensure the correct running of the required libraries.
 
