@@ -14,7 +14,7 @@
 
 `source activate MLenv`
 
-`conda install pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1`
+`conda install pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow-gpu==2.2.0 keras-gpu==2.3.1`
 
 `source deactivate MLenv`
 
