@@ -12,6 +12,7 @@ from keras.optimizers import Adam
 from keras.models import Sequential
 from sklearn.model_selection import train_test_split
 from keras.layers import BatchNormalization, Lambda, Dropout
+from tensorflow.compat.v2.keras.utils import multi_gpu_model
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.metrics import classification_report, confusion_matrix
 from keras.layers import Dense, Conv1D, Flatten, MaxPool1D, concatenate, Reshape
@@ -102,6 +103,7 @@ model = BatchNormalization()(model)
 model = Dropout(rate=0.7)(model)
 model = Dense(n_clas, activation='softmax')(model)
 model = Model([modelU.input, modelS.input, modelC.input], model)
+model = multi_gpu_model(model, gpus=8)
 model.compile(	optimizer=Adam(lr=0.001, decay=0.7),
 				loss='categorical_crossentropy', metrics=['accuracy'])
 model.fit(	x=[Xu_train, Xs_train, Xc_train], y=Y_train,
