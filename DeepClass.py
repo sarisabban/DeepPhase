@@ -20,6 +20,7 @@ def warn(*args, **kwargs): pass
 warnings.warn = warn
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+GPUs = 8
 with h5py.File('Y.hdf5', 'r') as Yh:
 	Y = Yh['default'][()]
 with h5py.File('Space.hdf5', 'r') as Sh:
@@ -105,12 +106,12 @@ with tf.device('/cpu:0'):
 	model = Dropout(rate=0.7)(model)
 	model = Dense(n_clas, activation='softmax')(model)
 	model = Model([modelU.input, modelS.input, modelC.input], model)
-model = multi_gpu_model(model, gpus=8)
+model = multi_gpu_model(model, gpus=GPUs)
 model.compile(	optimizer=Adam(lr=0.001, decay=0.7),
 				loss='categorical_crossentropy', metrics=['accuracy'])
 model.fit(	x=[Xu_train, Xs_train, Xc_train], y=Y_train,
 			validation_data=([Xu_valid, Xs_valid, Xc_valid], Y_valid),
-			epochs=200, batch_size=32, verbose=1)
+			epochs=200, batch_size=32*GPUs, verbose=1)
 predics= model.predict([Xu_tests, Xs_tests, Xc_tests], verbose=1)
 y_preds= np.argmax(predics, axis=1)
 y_tests= np.argmax(Y_tests, axis=1)
