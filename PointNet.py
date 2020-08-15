@@ -12,6 +12,7 @@ from keras.optimizers import Adam
 from keras.models import Sequential
 from sklearn.model_selection import train_test_split
 from keras.layers import BatchNormalization, Lambda, Dropout
+from tensorflow.compat.v2.keras.utils import multi_gpu_model
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from keras.layers import Dense, Conv1D, Flatten, MaxPool1D, concatenate, Reshape
 def warn(*args, **kwargs): pass
@@ -80,5 +81,6 @@ c = Dropout(rate=0.7)(c)
 c = Dense(n_clas, activation='softmax')(c)
 c = Flatten()(c)
 modelC = Model(inputs=input_points, outputs=c)
+modelC = multi_gpu_model(modelC, gpus=8)
 modelC.compile(optimizer=Adam(lr=0.001, decay=0.7), loss='categorical_crossentropy', metrics=['accuracy'])
 modelC.fit(X_train, Y_train, validation_data=(X_valid, Y_valid), epochs=200, batch_size=32)
