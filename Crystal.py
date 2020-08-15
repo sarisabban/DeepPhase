@@ -257,7 +257,7 @@ class PhaseData():
 				for line in t: f.write(line)
 		os.remove('temp')
 
-def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
+def Vectorise_Class(filename='DeepClass.csv', fp=np.float64, ip=np.int64):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
