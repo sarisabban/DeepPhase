@@ -19,6 +19,7 @@ def warn(*args, **kwargs): pass
 warnings.warn = warn
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+GPUs = 8
 with h5py.File('Y.hdf5', 'r') as Yh: Y = Yh['default'][()]
 with h5py.File('Coord.hdf5', 'r') as Ch: Coord = Ch['default'][()]
 # Split train/tests/valid
@@ -83,6 +84,6 @@ with tf.device('/cpu:0'):
     c = Dense(n_clas, activation='softmax')(c)
     c = Flatten()(c)
     modelC = Model(inputs=input_points, outputs=c)
-modelC = multi_gpu_model(modelC, gpus=8)
+modelC = multi_gpu_model(modelC, gpus=GPUs)
 modelC.compile(optimizer=Adam(lr=0.001, decay=0.7), loss='categorical_crossentropy', metrics=['accuracy'])
-modelC.fit(X_train, Y_train, validation_data=(X_valid, Y_valid), epochs=200, batch_size=32)
+modelC.fit(X_train, Y_train, validation_data=(X_valid, Y_valid), epochs=200, batch_size=32*GPUs)
