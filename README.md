@@ -19,7 +19,7 @@
 `source deactivate MLenv`
 
 ## Description:
-This project is an attempt to classify proteins from their X-Ray crystal reflection data.
+This project is an attempt to classify proteins (Helical or Non-helical) from their X-Ray crystal reflection data.
 
 ### Compile Dataset:
 1. If you are going to compile the dataset yourself, use the following command to install conda and the required packages:
@@ -32,23 +32,14 @@ This project is an attempt to classify proteins from their X-Ray crystal reflect
 
 3. Compile the dataset using the following command:
 
-`python Crystal.py class`
+`python crystal.py class`
 
 4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them, that way the dataset can be loaded. Each tensor will be a separate file.
 
-`python Crystal.py vectorise_class`
+`python crystal.py vectorise_class`
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
 ### Run Training:
-1. It is best to use the dataset that I have compiled which you can download from [here](https://www.dropbox.com/s/ka19wxvky5kktvk/DeepClass.csv.xz?dl=0) (6 GB). Run the following command to uncompress the the dataset (60 GB):
-
-`xz -d DeepClass.csv.xz`
-
-2. Reduce the number of features and vectorise the dataset so it can fit into the supercomputer's RAM memory as well as function within TensorFlow's int32 tensor indexing limit.
-`python DeepClass.py vectorise_class_dim`
-
-3. Perform training on the dataset using the following command:
-`python DeepClass.py`
 
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
