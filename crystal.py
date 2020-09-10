@@ -351,9 +351,14 @@ class PhaseData():
 				for line in t: f.write(line)
 		os.remove('temp')
 
-Cls = ClassData()
-Cls.run(IDs='Class.txt', max_size=10)
-Vectorise_Class()
+def main():
+	if sys.argv[1] == 'class':
+		Cls = ClassData()
+		Cls.run(IDs='Class.txt', max_size=10)
+	elif sys.argv[1] == 'phase':
+		Phs = PhaseData()
+		Phs.run(IDs='Class.txt')
+	elif sys.argv[1] == 'vectorise_class':
+		Vectorise_Class()
 
-Phs = PhaseData()
-Phs.run(IDs='Class.txt')
+if __name__ == '__main__': main()
