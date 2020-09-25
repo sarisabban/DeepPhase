@@ -143,7 +143,7 @@ class ClassData():
 						.format(item.upper()))
 						continue
 
-def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
+def Vectorise_Class(filename='DeepClass.csv', p=10000, fp=np.float16, ip=np.int16):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
@@ -155,38 +155,39 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	lines = list(range(1, rows + 1))
 	random.shuffle(lines)
 	# 3. Open CSV file
-	File = open(filename)
-	# 4. Import a single row
-	all_lines_variable = File.readlines()
-	L, S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], [], []
+	with open(filename, 'r') as File:
+		all_lines_variable = File.readlines()
+	L, S = np.array([]), np.array([])
+	UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], []
 	for i in lines:
-		# 7. Isolate labels and crystal data columns
+		# 4. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
 		line= line.strip().split(',')
-		L.append(np.array(str(line[1]), dtype=str))
-		S.append(np.array(int(line[2]), dtype=ip))
-		UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
-		UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
-		# 6. Isolate points data columns
+		L = np.append(L, np.array(str(line[1]), dtype=str))
+		S = np.append(S, np.array(int(line[2]), dtype=ip))
+		UCe.append(np.array([float(i) for i in line[3:6]], dtype=ip))
+		UCa.append(np.array([float(i) for i in line[6:9]], dtype=ip))
+		# 5. Isolate points data columns
 		Pts = line[9:]
 		Pts = [float(i) for i in Pts]
-		# 7. Isolate different points data
+		if len(Pts) < 5*p:
+			dif = 5*p - len(Pts)
+			for i in range(dif): Pts.append(0.0)
+		# 6. Isolate different points data
 		X.append(np.array(Pts[0::5], dtype=fp))
 		Y.append(np.array(Pts[1::5], dtype=fp))
 		Z.append(np.array(Pts[2::5], dtype=fp))
 		R.append(np.array(Pts[3::5], dtype=fp))
 		E.append(np.array(Pts[4::5], dtype=fp))
-	# 8. Construct matrices
-	L  = np.array(L)
-	S  = np.array(S)
-	UCe= np.array(UCe)
-	UCa= np.array(UCa)
-	X  = np.array(X)
-	Y  = np.array(Y)
-	Z  = np.array(Z)
-	R  = np.array(R)
-	E  = np.array(E)
-	# 9. One-Hot encoding and normalisation
+	# 7. Build arrays
+	UCe = np.array(UCe)
+	UCa = np.array(UCa)
+	X = np.array(X)
+	Y = np.array(Y)
+	Z = np.array(Z)
+	R = np.array(R)
+	E = np.array(E)
+	# 8. One-Hot encoding and normalisation
 	''' Y labels '''
 	label_encoder = LabelEncoder()
 	integer_encoded = label_encoder.fit_transform(L)
@@ -220,14 +221,14 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 	mini = 0
 	maxi = np.amax(E)
 	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
-	# 10. Construct tensors - final features
+	# 9. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
 	Coord = np.array([X, Y, Z, R, E])
 	Coord = np.swapaxes(Coord, 0, 2)
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
-	# 11. Serialise tensors
+	# 10. Serialise tensors
 	with h5py.File('Y.hdf5', 'w') as Yh:
 		dset = Yh.create_dataset('default', data=y)
 	with h5py.File('Space.hdf5', 'w') as Sh:
@@ -236,7 +237,7 @@ def Vectorise_Class(filename='DeepClass.csv', fp=np.float16, ip=np.int16):
 		dset = Uh.create_dataset('default', data=UnitC)
 	with h5py.File('Coord.hdf5', 'w') as Ch:
 		dset = Ch.create_dataset('default', data=Coord)
-
+						
 class PhaseData():
 	''' Build a dataset for phase calculation from x-ray diffractions '''
 	def download(self, filename):
