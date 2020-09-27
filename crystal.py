@@ -189,12 +189,9 @@ def Vectorise_Class(filename='DeepClass.csv', p=10000, fp=np.float16, ip=np.int1
 	E = np.array(E)
 	# 8. One-Hot encoding and normalisation
 	''' Y labels '''
-	label_encoder = LabelEncoder()
-	integer_encoded = label_encoder.fit_transform(L)
-	onehot_encoder = OneHotEncoder(sparse=False)
-	integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
-	y = onehot_encoder.fit_transform(integer_encoded)
-	y = np.float16(y)
+	L[L=='Not_Alpha'] = 0
+	L[L=='Alpha']     = 1
+	L = L.astype(np.int)
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
 	S = S.reshape(-1, 1)
