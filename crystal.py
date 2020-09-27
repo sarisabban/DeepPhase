@@ -191,7 +191,7 @@ def Vectorise_Class(filename='DeepClass.csv', p=10000, fp=np.float16, ip=np.int1
 	''' Y labels '''
 	L[L=='Not_Alpha'] = 0
 	L[L=='Alpha']     = 1
-	L = L.astype(np.int)
+	y = L.astype(np.int)
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
 	S = S.reshape(-1, 1)
