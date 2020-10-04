@@ -143,7 +143,7 @@ class ClassData():
 						.format(item.upper()))
 						continue
 
-def Vectorise_Class(filename='DeepClass.csv', p=10000, fp=np.float16, ip=np.int16):
+def Vectorise_Class(filename='DeepClass.csv', p=10000, fp=np.float64, ip=np.int64):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
