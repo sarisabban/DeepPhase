@@ -18,7 +18,7 @@ X_train, X_valid, Y_train, Y_valid = train_test_split(X_train, Y_train, test_siz
 print(X_train.shape, X_valid.shape, X_tests.shape)
 print(Y_train.shape, Y_valid.shape, Y_tests.shape)
 
-NUM_POINTS  = 1000
+NUM_POINTS  = 10000
 NUM_CLASSES = 2
 CHANNELS    = X_train.shape[-1]
 
