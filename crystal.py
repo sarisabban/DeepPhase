@@ -282,7 +282,7 @@ class ClassData_top():
 						.format(item.upper()))
 						continue
 
-def VectoriseClass(filename='DeepClass.csv', max_size=10000, fp=np.float64, ip=np.int64):
+def VectoriseClass(filename='DeepClass.csv', max_size=50000, fp=np.float64, ip=np.int64):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
@@ -301,23 +301,24 @@ def VectoriseClass(filename='DeepClass.csv', max_size=10000, fp=np.float64, ip=n
 		# 4. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
 		line= line.strip().split(',')
-		L = np.append(L, np.array(str(line[1]), dtype=str))
-		S.append(np.array(int(line[2]), dtype=ip))
-		UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
-		UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
-		# 5. Isolate points data columns
-		Pts = line[9:]
-		Pts = [float(i) for i in Pts]
-		if len(Pts) < 5*max_size:
-			dif = 5*max_size - len(Pts)
-			for i in range(dif): Pts.append(0.0)
-		assert len(Pts) == 5*max_size, 'Max number of points incorrect'
-		# 6. Isolate different points data
-		X.append(np.array(Pts[0::5], dtype=fp))
-		Y.append(np.array(Pts[1::5], dtype=fp))
-		Z.append(np.array(Pts[2::5], dtype=fp))
-		R.append(np.array(Pts[3::5], dtype=fp))
-		E.append(np.array(Pts[4::5], dtype=fp))
+		if len(line) <= 500000:
+			L = np.append(L, np.array(str(line[1]), dtype=str))
+			S.append(np.array(int(line[2]), dtype=ip))
+			UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
+			UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
+			# 5. Isolate points data columns
+			Pts = line[9:]
+			Pts = [float(i) for i in Pts]
+			if len(Pts) < 5*max_size:
+				dif = 5*max_size - len(Pts)
+				for i in range(dif): Pts.append(0.0)
+			assert len(Pts) == 5*max_size, 'Max number of points incorrect'
+			# 6. Isolate different points data
+			X.append(np.array(Pts[0::5], dtype=fp))
+			Y.append(np.array(Pts[1::5], dtype=fp))
+			Z.append(np.array(Pts[2::5], dtype=fp))
+			R.append(np.array(Pts[3::5], dtype=fp))
+			E.append(np.array(Pts[4::5], dtype=fp))
 	# 7. Build arrays
 	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
 	S   = np.array(S)
@@ -490,20 +491,38 @@ class PhaseData():
 		os.remove('temp')
 
 def max_size(filename, dim):
-	'''fine the maximum reflection size of a dataset '''
+	'''Find the maximum reflection size of a dataset '''
 	dim = int(dim)
-	sizes = []
+	M2, M1, K500, S = [], [], [], []
 	with open(filename, 'r') as f:
 		for line in f:
 			line = line.strip().split(',')
 			if dim == 5:
-				line = line[9:]
+	            size = len(line[9:])/5
+	            if size >= 2000000:
+	                    M2.append(size)
+	            elif 1000000 <= size < 2000000:
+	                    M1.append(size)
+	            elif 500000 < size < 1000000:
+	                    K500.append(size)
+	            elif size <= 500000:
+	                    S.append(size)
 			else:
-				line = line[8:]
-			sizes.append(len(line)/dim)
-	print('max_size =', int(max(sizes)))
+	            size = len(line[8:])/6
+	            if size >= 2000000:
+	                    M2.append(size)
+	            elif 1000000 <= size < 2000000:
+	                    M1.append(size)
+	            elif 500000 < size < 1000000:
+	                    K500.append(size)
+	            elif size <= 500000:
+	                    S.append(size)
+	print('2M'  , len(M2),   'max_size=', max(M2))
+	print('1M  ', len(M1),   'max_size=', max(M1))
+	print('500K', len(K500), 'max_size=', max(K500))
+	print('Smal', len(S),    'max_size=', max(S))
 
-def VectorisePhase(filename='DeepPhase.csv', max_size=7000000, fp=np.float16, ip=np.int64):
+def VectorisePhase(filename='DeepPhase.csv', max_size=499338, fp=np.float16, ip=np.int16):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
@@ -521,23 +540,24 @@ def VectorisePhase(filename='DeepPhase.csv', max_size=7000000, fp=np.float16, ip
 		# 4. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
 		line= line.strip().split(',')
-		S.append(np.array(int(line[1]), dtype=ip))
-		UCe.append(np.array([float(i) for i in line[2:5]], dtype=fp))
-		UCa.append(np.array([float(i) for i in line[5:8]], dtype=fp))
-		# 5. Isolate points data columns
-		Pts = line[8:]
-		Pts = [float(i) for i in Pts]
-		if len(Pts) < 6*max_size:
-			dif = 6*max_size - len(Pts)
-			for i in range(dif): Pts.append(0.0)
-		assert len(Pts) == 6*max_size, 'Max number of points incorrect'
-		# 6. Isolate different points data
-		X.append(np.array(Pts[0::6], dtype=fp))
-		Y.append(np.array(Pts[1::6], dtype=fp))
-		Z.append(np.array(Pts[2::6], dtype=fp))
-		R.append(np.array(Pts[3::6], dtype=fp))
-		E.append(np.array(Pts[4::6], dtype=fp))
-		P.append(np.array(Pts[5::6], dtype=fp))
+		if len(line) <= 500000:
+			S.append(np.array(int(line[1]), dtype=ip))
+			UCe.append(np.array([float(i) for i in line[2:5]], dtype=fp))
+			UCa.append(np.array([float(i) for i in line[5:8]], dtype=fp))
+			# 5. Isolate points data columns
+			Pts = line[8:]
+			Pts = [float(i) for i in Pts]
+			if len(Pts) < 6*max_size:
+				dif = 6*max_size - len(Pts)
+				for i in range(dif): Pts.append(0.0)
+			assert len(Pts) == 6*max_size, 'Max number of points incorrect'
+			# 6. Isolate different points data
+			X.append(np.array(Pts[0::6], dtype=fp))
+			Y.append(np.array(Pts[1::6], dtype=fp))
+			Z.append(np.array(Pts[2::6], dtype=fp))
+			R.append(np.array(Pts[3::6], dtype=fp))
+			E.append(np.array(Pts[4::6], dtype=fp))
+			P.append(np.array(Pts[5::6], dtype=fp))
 	# 7. Build arrays
 	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
 	S = np.array(S)
