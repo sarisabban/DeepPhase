@@ -19,7 +19,8 @@
 `source deactivate MLenv`
 
 ## Description:
-This project is an attempt to classify proteins (Helical or Non-helical) from their X-Ray crystal reflection data.
+DeepClass: This project is an attempt to classify proteins (Helical or Non-helical) from their X-Ray crystal reflection data.
+DeepPhase: This project is an attempt to calculate the phase of each reflection point.
 
 ### Compile Dataset:
 1. If you are going to compile the dataset yourself, use the following command to install conda and the required packages:
@@ -30,13 +31,33 @@ This project is an attempt to classify proteins (Helical or Non-helical) from th
 
 2. Download a list of PDB IDs from RCSB.org, make sure the all the IDs are in a single line separated by a comma as per the RCSB standard.
 
-3. Compile the dataset using the following command:
+3. Compile the dataset using one of the following commands:
+
+To compile the whole dataset for DeepClass
 
 `python crystal.py class`
 
+To compile the top 10000 reflection points (sorted by E-Value) for DeepClass
+
+`python crystal.py class_top 10000`
+
+To compile the whole dataset for DeepPhase
+
+`python crystal.py phase`
+
+For whole dataset compilation, to find the maximum number of reflections of the largest example use the following command:
+
+`python crystal.py max_size`
+
 4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them, that way the dataset can be loaded. Each tensor will be a separate file.
 
-`python crystal.py vectorise_class`
+For DeepClass:
+
+`python crystal.py vectorise_class MAX_SIZE`
+
+For DeepPhase:
+
+`python crystal.py vectorise_phase MAX_SIZE`
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
