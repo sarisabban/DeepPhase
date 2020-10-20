@@ -252,7 +252,7 @@ class ClassData_top():
 						H_frac, S_frac, L_frac = self.labels(Pfilename)
 						if H_frac >= 0.5 or S_frac == 0.0:
 							label = 'Alpha'
-						else:
+						elif H_frac < 0.5 or S_frac >= 0.25:
 							label = 'Not_Alpha'
 						assert len(X) == len(Y) == len(Z) == len(R) == len(E),\
 						'\u001b[31m[-] {} Failed: values not equal\u001b[0m'.\
