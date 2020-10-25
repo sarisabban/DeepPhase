@@ -5,14 +5,23 @@ import tqdm
 import random
 import urllib
 import Bio.PDB
+import argparse
 import numpy as np
-from iotbx.reflection_file_reader import any_reflection_file
+#from iotbx.reflection_file_reader import any_reflection_file
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+
+parser = argparse.ArgumentParser(description='Compiling X-ray diffraction datasets')
+parser.add_argument('-C' , '--Class'   , nargs='+', help='Compile DeepClass protein classification dataset, include filename of PDB IDs')
+parser.add_argument('-P' , '--Phase'   , nargs='+', help='Compile DeepPhase protein phase calculation dataset, include filename of PDB IDs')
+parser.add_argument('-vc', '--Vecclass', nargs='+', help='Vectorise and serialise the DeepClass protein classification dataset, include maximum number of reflections of leave empty for all reflections')
+parser.add_argument('-vp', '--Vecphase', nargs='+', help='Vectorise and serialise the DeepPhase protein phase calculation dataset, include maximum number of reflections of leave empty for all reflections')
+args = parser.parse_args()
 
 class ClassData():
 	'''
-	Build a dataset for protein classification (Alpha/Not_Alpha)
-	from x-ray diffractions and get all the reflections
+	Build a dataset for protein classification (Helix/Sheet)
+	from x-ray diffraction .mtz and .pbd files and compile all
+	the reflections
 	'''
 	def download(self, ID):
 		''' Downloads a structure's .mtz and .pdb files '''
@@ -105,10 +114,10 @@ class ClassData():
 						Pfilename = item + '.pdb'
 						S,C,X,Y,Z,R,E = self.features(Mfilename)
 						H_frac, S_frac, L_frac = self.labels(Pfilename)
-						if H_frac >= 0.5 or S_frac == 0.0:
-							label = 'Alpha'
-						elif H_frac < 0.5 or S_frac >= 0.25:
-							label = 'Not_Alpha'
+						if   H_frac >= 0.50 and S_frac == 0.00 and L_frac <= 0.50:
+							label = 'Helix'
+						elif H_frac == 0.00 and S_frac >= 0.50 and L_frac <= 0.50:
+							label = 'Sheet'
 						assert len(X) == len(Y) == len(Z) == len(R) == len(E),\
 						'\u001b[31m[-] {} Failed: values not equal\u001b[0m'.\
 						format(item.upper())
@@ -148,178 +157,70 @@ class ClassData():
 				for line in t: f.write(line)
 		os.remove('temp')
 
-class ClassData_top():
-	'''
-	Build a dataset for protein classification (Alpha/Not_Alpha)
-	from x-ray diffractions and get the top n number of reflections
-	sorted by E-value
-	'''
-	def download(self, ID):
-		''' Downloads a structure's .mtz and .pdb files '''
-		Murl = 'http://edmaps.rcsb.org/coefficients/{}.mtz'.format(ID)
-		Purl = 'https://files.rcsb.org/download/{}.pdb'.format(ID)
-		urllib.request.urlretrieve(Murl, '{}.mtz'.format(ID))
-		urllib.request.urlretrieve(Purl, '{}.pdb'.format(ID))
-	def features(self, filename, size=10000):
-		'''
-		Extracts required features from .mtz files. More info can be found here:
-		https://cci.lbl.gov/cctbx_docs/cctbx/cctbx.miller.html
-		'''
-		hkl_file = any_reflection_file(filename)
-		arrays = hkl_file.as_miller_arrays(merge_equivalents=False)
-		for a in arrays:
-			label = str(a.info()).split(':')[-1]
-			if label == 'FOM':
-				# Cell Dimentions
-				C = a.unit_cell()
-				# P1 expand
-				P1 = a.expand_to_p1().indices()
-				# Resolution
-				rr = list(C.d(P1))
-				# Space Group
-				ms_base = a.customized_copy()
-				ms_all = ms_base.complete_set()
-				ms=ms_all.customized_copy(space_group_info=a.space_group_info())
-				S = str(ms).split()[-1].split(')')[0]
-				# E-values in P1 space group
-				a.setup_binner(auto_binning=True)
-				a.binner()
-				e_val = a.quasi_normalize_structure_factors()
-				ee = list(e_val.expand_to_p1().f_sq_as_f().data())
-				# Convert miller hkl to polar P1 space group
-				polar_coordinates = list(C.reciprocal_space_vector(P1))
-				xx = []
-				yy = []
-				zz = []
-				for x, y, z in polar_coordinates:
-					xx.append(x)
-					yy.append(y)
-					zz.append(z)
-				C = str(C)[1:-1]
-				C = tuple(map(str, C.split(', ')))
-				NC = []
-				for x, y, z, r, e in zip(xx, yy, zz, rr, ee):
-					if r >= 10.0 or r <= 2.5: continue
-					else: NC.append((x, y, z, r, e))
-				# Sort and choose according to top E-values
-				SORTED = sorted(NC, reverse=True, key=lambda c:c[4])
-				SORTED = SORTED[:size]
-				X, Y, Z, R, E = [], [], [], [], []
-				for i in SORTED:
-					X.append(i[0])
-					Y.append(i[1])
-					Z.append(i[2])
-					R.append(i[3])
-					E.append(i[4])
-				return(S, C, X, Y, Z, R, E)
-	def labels(self, filename):
-		structure = Bio.PDB.PDBParser(QUIET=True).get_structure('X', filename)
-		dssp = Bio.PDB.DSSP(structure[0], filename, acc_array='Wilke')
-		SS = []
-		for aa in dssp:
-			if aa[2] == 'G' or aa[2] == 'H' or aa[2] == 'I':   ss = 'H'
-			elif aa[2] == 'B' or aa[2] == 'E':                 ss = 'S'
-			elif aa[2] == 'S' or aa[2] == 'T' or aa[2] == '-': ss = 'L'
-			SS.append(ss)
-		H = SS.count('H')
-		S = SS.count('S')
-		L = SS.count('L')
-		H_frac = H/len(SS)
-		S_frac = S/len(SS)
-		L_frac = L/len(SS)
-		return(H_frac, S_frac, L_frac)
-	def run(self, IDs='IDs.txt', max_size=10000):
-		with open('DeepClass.csv', 'a') as TheFile:
-			header = ['PDB_ID,Label,Space_Group,Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma']
-			for i in range(1, max_size+1):
-				header.append(',X_{},Y_{},Z_{},Resolution_{},E-value_{}'\
-				.format(i, i, i, i, i))
-			header = ''.join(header)
-			TheFile.write(header + '\n')
-			with open(IDs) as f:
-				line = f.read().strip().lower().split(',')
-				for item in tqdm.tqdm(line):
-					try:
-						self.download(item)
-					except:
-						print('\u001b[31m[-] {} Failed to download\u001b[0m'\
-						.format(item.upper()))
-						continue
-					try:
-						Mfilename = item + '.mtz'
-						Pfilename = item + '.pdb'
-						S,C,X,Y,Z,R,E = self.features(Mfilename, size=max_size)
-						H_frac, S_frac, L_frac = self.labels(Pfilename)
-						if H_frac >= 0.5 or S_frac == 0.0:
-							label = 'Alpha'
-						elif H_frac < 0.5 or S_frac >= 0.25:
-							label = 'Not_Alpha'
-						assert len(X) == len(Y) == len(Z) == len(R) == len(E),\
-						'\u001b[31m[-] {} Failed: values not equal\u001b[0m'.\
-						format(item.upper())
-						exp = [S]
-						a     = C[0]
-						b     = C[1]
-						c     = C[2]
-						alpha = C[3]
-						beta  = C[4]
-						gamma = C[5]
-						exp.append(a+','+b+','+c+','+alpha+','+beta+','+gamma)
-						for x, y, z, r, e in zip(X, Y, Z, R, E):
-							x = str(round(x, 5))
-							y = str(round(y, 5))
-							z = str(round(z, 5))
-							r = str(round(r, 5))
-							e = str(round(e, 5))
-							exp.append(x+','+y+','+z+','+r+','+e)
-						example = ','.join(exp)
-						TheFile.write(item.upper()+'.mtz'+','+label+',')
-						TheFile.write(example + '\n')
-						os.remove(Mfilename)
-						os.remove(Pfilename)
-					except Exception as e:
-						print('\u001b[31m[-] {} Failed: not compiling\u001b[0m'\
-						.format(item.upper()))
-						continue
-
-def VectoriseClass(filename='DeepClass.csv', max_size=10000, fp=np.float64, ip=np.int64):
+def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip=np.int64):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
-	final tensors and export the result as a serial.
+	final tensors and export the result as a serial. It also allows construction
+	of datasets with different point sizes
 	'''
-	# 1. Find number of rows
+	# 1. Find max_size number
+	try:
+		max_size = int(max_size)
+		tick = True
+	except:
+		with open(filename) as f:
+			header = f.readline()
+			header = header.strip().split(',')[9:]
+			max_size = int(len(header)/5)
+		tick = False
+	# 2. Find number of rows
 	rows = len(open(filename).readlines()) - 1
-	# 2. Generate a list of random number of rows
+	# 3. Generate a list of random number of rows
 	lines = list(range(1, rows + 1))
 	random.shuffle(lines)
-	# 3. Open CSV file
-	with open(filename, 'r') as File: all_lines_variable = File.readlines()
+	# 4. Open CSV file
+	with open(filename, 'r') as File:
+		all_lines_variable = File.readlines()
 	L = np.array([])
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
 	for i in lines:
-		# 4. Isolate labels and crystal data columns
+		# 5. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
 		line= line.strip().split(',')
-		if len(line) <= 10000:
-			L = np.append(L, np.array(str(line[1]), dtype=str))
-			S.append(np.array(int(line[2]), dtype=ip))
-			UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
-			UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
-			# 5. Isolate points data columns
-			Pts = line[9:]
-			Pts = [float(i) for i in Pts]
-			if len(Pts) < 5*max_size:
-				dif = 5*max_size - len(Pts)
-				for i in range(dif): Pts.append(0.0)
-			assert len(Pts) == 5*max_size, 'Max number of points incorrect'
-			# 6. Isolate different points data
-			X.append(np.array(Pts[0::5], dtype=fp))
-			Y.append(np.array(Pts[1::5], dtype=fp))
-			Z.append(np.array(Pts[2::5], dtype=fp))
-			R.append(np.array(Pts[3::5], dtype=fp))
-			E.append(np.array(Pts[4::5], dtype=fp))
-	# 7. Build arrays
+		L = np.append(L, np.array(str(line[1]), dtype=str))
+		S.append(np.array(int(line[2]), dtype=ip))
+		UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
+		UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
+		# 6. Isolate points data columns
+		Pts = line[9:]
+		Pts = [float(i) for i in Pts]
+		# 7. Sort by E-value and turnicate
+		if tick == True:
+			x = Pts[0::5]
+			y = Pts[1::5]
+			z = Pts[2::5]
+			r = Pts[3::5]
+			e = Pts[4::5]
+			NC = []
+			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
+				NC.append((xx, yy, zz, rr, ee))
+			# 7.5 Sort and choose according to top E-values
+			Pts = sorted(NC, reverse=True, key=lambda c:c[4])
+			Pts = Pts[:max_size]
+			Pts = [i for sub in Pts for i in sub]
+		# 8. Padding
+		if len(Pts) < 5*max_size:
+			dif = 5*max_size - len(Pts)
+			for i in range(dif): Pts.append(0.0)
+		assert len(Pts) == 5*max_size, 'Max number of points incorrect'
+		# 9. Isolate different points data
+		X.append(np.array(Pts[0::5], dtype=fp))
+		Y.append(np.array(Pts[1::5], dtype=fp))
+		Z.append(np.array(Pts[2::5], dtype=fp))
+		R.append(np.array(Pts[3::5], dtype=fp))
+		E.append(np.array(Pts[4::5], dtype=fp))
+	# 10. Build arrays
 	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
 	S   = np.array(S)
 	UCe = np.array(UCe)
@@ -329,10 +230,10 @@ def VectoriseClass(filename='DeepClass.csv', max_size=10000, fp=np.float64, ip=n
 	Z   = np.array(Z)
 	R   = np.array(R)
 	E   = np.array(E)
-	# 8. One-Hot encoding and normalisation
+	# 11. One-Hot encoding and normalisation
 	''' Y labels '''
-	L[L=='Not_Alpha'] = 0
-	L[L=='Alpha']     = 1
+	L[L=='Helix'] = 0
+	L[L=='Sheet']     = 1
 	y = L.astype(np.int)
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
@@ -360,22 +261,22 @@ def VectoriseClass(filename='DeepClass.csv', max_size=10000, fp=np.float64, ip=n
 	mini = 0
 	maxi = np.amax(E)
 	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
-	# 9. Construct tensors - final features
+	# 12. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
 	Coord = np.array([X, Y, Z, R, E])
 	Coord = np.swapaxes(Coord, 0, 2)
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
-	# 10. Serialise tensors
-	with h5py.File('Y.hdf5', 'w') as Yh:
-		dset = Yh.create_dataset('default', data=y)
-	with h5py.File('Space.hdf5', 'w') as Sh:
-		dset = Sh.create_dataset('default', data=Space)
-	with h5py.File('UnitC.hdf5', 'w') as Uh:
-		dset = Uh.create_dataset('default', data=UnitC)
-	with h5py.File('Coord.hdf5', 'w') as Ch:
-		dset = Ch.create_dataset('default', data=Coord)
+	# 13. Serialise tensors
+#	with h5py.File('Y.hdf5', 'w') as Yh:
+#		dset = Yh.create_dataset('default', data=y)
+#	with h5py.File('Space.hdf5', 'w') as Sh:
+#		dset = Sh.create_dataset('default', data=Space)
+#	with h5py.File('UnitC.hdf5', 'w') as Uh:
+#		dset = Uh.create_dataset('default', data=UnitC)
+#	with h5py.File('Coord.hdf5', 'w') as Ch:
+#		dset = Ch.create_dataset('default', data=Coord)
 
 class PhaseData():
 	''' Build a dataset for phase calculation from x-ray diffractions '''
@@ -490,44 +391,13 @@ class PhaseData():
 				for line in t: f.write(line)
 		os.remove('temp')
 
-def max_size(filename, dim):
-	'''Find the maximum reflection size of a dataset '''
-	dim = int(dim)
-	M2, M1, K500, S = [], [], [], []
-	with open(filename, 'r') as f:
-		for line in f:
-			line = line.strip().split(',')
-			if dim == 5:
-	            size = len(line[9:])/5
-	            if size >= 2000000:
-	                    M2.append(size)
-	            elif 1000000 <= size < 2000000:
-	                    M1.append(size)
-	            elif 500000 < size < 1000000:
-	                    K500.append(size)
-	            elif size <= 500000:
-	                    S.append(size)
-			else:
-	            size = len(line[8:])/6
-	            if size >= 2000000:
-	                    M2.append(size)
-	            elif 1000000 <= size < 2000000:
-	                    M1.append(size)
-	            elif 500000 < size < 1000000:
-	                    K500.append(size)
-	            elif size <= 500000:
-	                    S.append(size)
-	print('2M'  , len(M2),   'max_size=', max(M2))
-	print('1M  ', len(M1),   'max_size=', max(M1))
-	print('500K', len(K500), 'max_size=', max(K500))
-	print('Smal', len(S),    'max_size=', max(S))
-
-def VectorisePhase(filename='DeepPhase.csv', max_size=499338, fp=np.float16, ip=np.int16):
+def VectorisePhase(filename='DeepPhase.csv', max_size='499338', fp=np.float16, ip=np.int16):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
 	final tensors and export the result as a serial.
 	'''
+	max_size = int(max_size)
 	# 1. Find number of rows
 	rows = len(open(filename).readlines()) - 1
 	# 2. Generate a list of random number of rows
@@ -618,20 +488,15 @@ def VectorisePhase(filename='DeepPhase.csv', max_size=499338, fp=np.float16, ip=
 		dset = Ch.create_dataset('default', data=Coord)
 
 def main():
-	if sys.argv[1] == 'class_top':
-		Cls = ClassData_top()
-		Cls.run(IDs='Class.txt', max_size=int(sys.argv[2]))
-	elif sys.argv[1] == 'class':
+	if  args.Class:
 		Cls = ClassData()
-		Cls.run(IDs='Class.txt')
-	elif sys.argv[1] == 'vectorise_class':
-		VectoriseClass(max_size=int(sys.argv[2]))
-	elif sys.argv[1] == 'phase':
+		Cls.run(IDs=sys.argv[2])
+	elif args.Phase:
 		Phs = PhaseData()
-		Phs.run(IDs='Phase.txt')
-	elif sys.argv[1] == 'vectorise_phase':
-		VectorisePhase(max_size=int(sys.argv[2]))
-	elif sys.argv[1] == 'max_size':
-		max_size(sys.argv[2], sys.argv[3])
+		Phs.run(IDs=sys.argv[2])
+	elif args.Vecclass:
+		VectoriseClass(max_size=sys.argv[2])
+	elif args.Vecphase:
+		VectorisePhase(max_size=sys.argv[2])
 
 if __name__ == '__main__': main()
