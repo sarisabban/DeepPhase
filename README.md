@@ -41,8 +41,9 @@ To compile the dataset for DeepPhase
 
 `python crystal.py --Phase PDBIDs.txt` or `python crystal.py -P PDBIDs.txt`
 
-4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them, that way the dataset can be loaded. Each tensor will be a separate file. Since there are a large number of reflection points and a large variation in the number of reflection points between files, these commands can also allow you to choose the top reflection points sorted by E-value.
+**NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
+4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. Each tensor will be a separate file. Since there are a large number of reflection points and a large variation in the number of reflection points between files, these commands can also allow you to choose the top reflection points sorted by E-value. Any gaps in the dataset will be padded with zeros.
 
 To vectorise and serialise all the reflection points for DeepClass:
 
@@ -55,8 +56,6 @@ To compile the top 10000 reflection points (sorted by E-Value) for DeepClass
 To vectorise and serialise all the reflection points for DeepPhase (can only vectorise all points):
 
 `python crystal.py --Vecphase FILENAME.csv` or `python crystal.py -vp FILENAME.csv`
-
-**NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
 ### Run Training:
 
