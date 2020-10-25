@@ -33,31 +33,28 @@ DeepPhase: This project is an attempt to calculate the phase of each reflection 
 
 3. Compile the dataset using one of the following commands:
 
-To compile the whole dataset for DeepClass
+To compile the dataset for DeepClass
 
-`python crystal.py class`
+`python crystal.py --Class PDBIDs.txt` or `python crystal.py -C PDBIDs.txt`
+
+To compile the dataset for DeepPhase
+
+`python crystal.py --Phase PDBIDs.txt` or `python crystal.py -P PDBIDs.txt`
+
+4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them, that way the dataset can be loaded. Each tensor will be a separate file. Since there are a large number of reflection points and a large variation in the number of reflection points between files, these commands can also allow you to choose the top reflection points sorted by E-value.
+
+
+To vectorise and serialise all the reflection points for DeepClass:
+
+`python crystal.py --Vecclass FILENAME.csv all` or `python crystal.py -vc FILENAME.csv all`
 
 To compile the top 10000 reflection points (sorted by E-Value) for DeepClass
 
-`python crystal.py class_top 10000`
+`python crystal.py --Vecclass FILENAME.csv 10000` or `python crystal.py -vc FILENAME.csv 10000`
 
-To compile the whole dataset for DeepPhase
+To vectorise and serialise all the reflection points for DeepPhase (can only vectorise all points):
 
-`python crystal.py phase`
-
-For whole dataset compilation, to find the maximum number of reflections of the largest example use the following command:
-
-`python crystal.py max_size`
-
-4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them, that way the dataset can be loaded. Each tensor will be a separate file.
-
-For DeepClass:
-
-`python crystal.py vectorise_class MAX_SIZE`
-
-For DeepPhase:
-
-`python crystal.py vectorise_phase MAX_SIZE`
+`python crystal.py --Vecphase FILENAME.csv` or `python crystal.py -vp FILENAME.csv`
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
