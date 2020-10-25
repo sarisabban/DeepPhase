@@ -495,8 +495,8 @@ def main():
 		Phs = PhaseData()
 		Phs.run(IDs=sys.argv[2])
 	elif args.Vecclass:
-		VectoriseClass(max_size=sys.argv[2])
+		VectoriseClass(filename=sys.argv[2], max_size=sys.argv[3])
 	elif args.Vecphase:
-		VectorisePhase(max_size=sys.argv[2])
+		VectorisePhase(filename=sys.argv[2], max_size=sys.argv[3])
 
 if __name__ == '__main__': main()
