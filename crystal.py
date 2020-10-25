@@ -269,14 +269,14 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
 	# 13. Serialise tensors
-#	with h5py.File('Y.hdf5', 'w') as Yh:
-#		dset = Yh.create_dataset('default', data=y)
-#	with h5py.File('Space.hdf5', 'w') as Sh:
-#		dset = Sh.create_dataset('default', data=Space)
-#	with h5py.File('UnitC.hdf5', 'w') as Uh:
-#		dset = Uh.create_dataset('default', data=UnitC)
-#	with h5py.File('Coord.hdf5', 'w') as Ch:
-#		dset = Ch.create_dataset('default', data=Coord)
+	with h5py.File('Y.hdf5', 'w') as Yh:
+		dset = Yh.create_dataset('default', data=y)
+	with h5py.File('Space.hdf5', 'w') as Sh:
+		dset = Sh.create_dataset('default', data=Space)
+	with h5py.File('UnitC.hdf5', 'w') as Uh:
+		dset = Uh.create_dataset('default', data=UnitC)
+	with h5py.File('Coord.hdf5', 'w') as Ch:
+		dset = Ch.create_dataset('default', data=Coord)
 
 class PhaseData():
 	''' Build a dataset for phase calculation from x-ray diffractions '''
@@ -391,44 +391,48 @@ class PhaseData():
 				for line in t: f.write(line)
 		os.remove('temp')
 
-def VectorisePhase(filename='DeepPhase.csv', max_size='499338', fp=np.float16, ip=np.int16):
+def VectorisePhase(filename='DeepPhase.csv', fp=np.float16, ip=np.int16):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
 	final tensors and export the result as a serial.
 	'''
-	max_size = int(max_size)
-	# 1. Find number of rows
+	# 1. Find max_size number
+	with open(filename) as f:
+		header = f.readline()
+		header = header.strip().split(',')[8:]
+		max_size = int(len(header)/6)
+	# 2. Find number of rows
 	rows = len(open(filename).readlines()) - 1
-	# 2. Generate a list of random number of rows
+	# 3. Generate a list of random number of rows
 	lines = list(range(1, rows + 1))
 	random.shuffle(lines)
-	# 3. Open CSV file
+	# 4. Open CSV file
 	with open(filename, 'r') as File: all_lines_variable = File.readlines()
 	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
 	for i in lines:
-		# 4. Isolate labels and crystal data columns
+		# 5. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
 		line= line.strip().split(',')
 		if len(line) <= 500000:
 			S.append(np.array(int(line[1]), dtype=ip))
 			UCe.append(np.array([float(i) for i in line[2:5]], dtype=fp))
 			UCa.append(np.array([float(i) for i in line[5:8]], dtype=fp))
-			# 5. Isolate points data columns
+			# 6. Isolate points data columns
 			Pts = line[8:]
 			Pts = [float(i) for i in Pts]
 			if len(Pts) < 6*max_size:
 				dif = 6*max_size - len(Pts)
 				for i in range(dif): Pts.append(0.0)
 			assert len(Pts) == 6*max_size, 'Max number of points incorrect'
-			# 6. Isolate different points data
+			# 7. Isolate different points data
 			X.append(np.array(Pts[0::6], dtype=fp))
 			Y.append(np.array(Pts[1::6], dtype=fp))
 			Z.append(np.array(Pts[2::6], dtype=fp))
 			R.append(np.array(Pts[3::6], dtype=fp))
 			E.append(np.array(Pts[4::6], dtype=fp))
 			P.append(np.array(Pts[5::6], dtype=fp))
-	# 7. Build arrays
+	# 8. Build arrays
 	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
 	S = np.array(S)
 	UCe = np.array(UCe)
@@ -439,7 +443,7 @@ def VectorisePhase(filename='DeepPhase.csv', max_size='499338', fp=np.float16, i
 	R = np.array(R)
 	E = np.array(E)
 	P = np.array(P)
-	# 8. One-Hot encoding and normalisation
+	# 9. One-Hot encoding and normalisation
 	''' Y labels '''
 	mini = np.amin(P)
 	maxi = np.amax(P)
@@ -470,14 +474,14 @@ def VectorisePhase(filename='DeepPhase.csv', max_size='499338', fp=np.float16, i
 	mini = 0
 	maxi = np.amax(E)
 	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
-	# 9. Construct tensors - final features
+	# 10. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
 	Coord = np.array([X, Y, Z, R, E])
 	Coord = np.swapaxes(Coord, 0, 2)
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
-	# 10. Serialise tensors
+	# 11. Serialise tensors
 	with h5py.File('Phase.hdf5', 'w') as Ph:
 		dset = Ph.create_dataset('default', data=Phase)
 	with h5py.File('Space.hdf5', 'w') as Sh:
@@ -497,6 +501,6 @@ def main():
 	elif args.Vecclass:
 		VectoriseClass(filename=sys.argv[2], max_size=sys.argv[3])
 	elif args.Vecphase:
-		VectorisePhase(filename=sys.argv[2], max_size=sys.argv[3])
+		VectorisePhase(filename=sys.argv[2])
 
 if __name__ == '__main__': main()
