@@ -1,7 +1,7 @@
 # DeepPhase
  Protein structure classification from crystal structure
 
-## Requirements:
+## Requirements
 1. Get this script:
 
 `git clone https://github.com/sarisabban/DeepPhase.git`
@@ -18,10 +18,12 @@
 
 `source deactivate MLenv`
 
-## Description:
+## Description
 DeepClass: This project is an attempt to classify proteins (Helical or Non-helical) from their X-Ray crystal reflection data.
+
 DeepPhase: This project is an attempt to calculate the phase of each reflection point.
 
+## How To Use
 ### Compile Dataset:
 1. If you are going to compile the dataset yourself, use the following command to install conda and the required packages:
 
