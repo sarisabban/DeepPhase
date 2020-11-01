@@ -7,7 +7,7 @@ import urllib
 import Bio.PDB
 import argparse
 import numpy as np
-#from iotbx.reflection_file_reader import any_reflection_file
+from iotbx.reflection_file_reader import any_reflection_file
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 parser = argparse.ArgumentParser(description='Compiling X-ray diffraction datasets')
@@ -157,7 +157,9 @@ class ClassData():
 				for line in t: f.write(line)
 		os.remove('temp')
 
-def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip=np.int64):
+def VectoriseClass(filename='DeepClass.csv',
+	max_size='1000', Rmin=2.50, Rmax=3.00, Emin=0.00, Emax=1.10,
+	fp=np.float64, ip=np.int64, Pids=False):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
@@ -184,10 +186,12 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 		all_lines_variable = File.readlines()
 	L = np.array([])
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
+	I = np.array([])
 	for i in lines:
 		# 5. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
 		line= line.strip().split(',')
+		I = np.append(I, np.array(str(line[0]), dtype=str))
 		L = np.append(L, np.array(str(line[1]), dtype=str))
 		S.append(np.array(int(line[2]), dtype=ip))
 		UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
@@ -204,6 +208,7 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 			e = Pts[4::5]
 			NC = []
 			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
+				if rr >= Rmax or rr <= Rmin or ee >= Emax or ee <= Emin: continue
 				NC.append((xx, yy, zz, rr, ee))
 			# 7.5 Sort and choose according to top E-values
 			Pts = sorted(NC, reverse=True, key=lambda c:c[4])
@@ -222,6 +227,7 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 		E.append(np.array(Pts[4::5], dtype=fp))
 	# 10. Build arrays
 	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
+	I   = np.array(I)
 	S   = np.array(S)
 	UCe = np.array(UCe)
 	UCa = np.array(UCa)
@@ -233,7 +239,7 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 	# 11. One-Hot encoding and normalisation
 	''' Y labels '''
 	L[L=='Helix'] = 0
-	L[L=='Sheet']     = 1
+	L[L=='Sheet'] = 1
 	y = L.astype(np.int)
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
@@ -246,20 +252,20 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 	mini = 90.0
 	maxi = 180.0
 	UCa = (UCa-mini)/(maxi-mini)     # Normalise min/max UCa [Unit Cell Angles]
-	mini = -1
-	maxi = 1
+	mini = -0.4
+	maxi = 0.4
 	X = (X-mini)/(maxi-mini)         # Normalise min/max X   [X Coordinates]
-	mini = -1
-	maxi = 1
+	mini = -0.4
+	maxi = 0.4
 	Y = (Y-mini)/(maxi-mini)         # Normalise min/max Y   [Y Coordinates]
-	mini = -1
-	maxi = 1
+	mini = -0.4
+	maxi = 0.4
 	Z = (Z-mini)/(maxi-mini)         # Normalise min/max Z   [Z Coordinates]
-	mini = 2.5
-	maxi = 10
+	mini = Rmin
+	maxi = Rmax
 	R = (R-mini)/(maxi-mini)         # Normalise min/max R   [Resolution]
-	mini = 0
-	maxi = np.amax(E)
+	mini = Emin
+	maxi = Emax
 	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
 	# 12. Construct tensors - final features
 	Space = S
@@ -268,6 +274,11 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 	Coord = np.swapaxes(Coord, 0, 2)
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
+	print('I =', I.shape)
+	print('Y =', y.shape)
+	print('Space =', Space.shape)
+	print('UnitC =', UnitC.shape)
+	print('Coord =', Coord.shape)
 	# 13. Serialise tensors
 	with h5py.File('Y.hdf5', 'w') as Yh:
 		dset = Yh.create_dataset('default', data=y)
@@ -277,6 +288,10 @@ def VectoriseClass(filename='DeepClass.csv', max_size='10000', fp=np.float64, ip
 		dset = Uh.create_dataset('default', data=UnitC)
 	with h5py.File('Coord.hdf5', 'w') as Ch:
 		dset = Ch.create_dataset('default', data=Coord)
+	if Pids == True:
+		I = [n.encode('ascii', 'ignore') for n in I]	
+		with h5py.File('IDs.hdf5', 'w') as ii:
+			dset = ii.create_dataset('default', data=I)
 
 class PhaseData():
 	''' Build a dataset for phase calculation from x-ray diffractions '''
