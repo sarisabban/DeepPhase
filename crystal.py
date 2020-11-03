@@ -44,7 +44,7 @@ class ClassData():
 				# P1 expand
 				P1 = a.expand_to_p1().indices()
 				# Resolution
-				rr = list(C.d(P1))
+				R = list(C.d(P1))
 				# Space Group
 				ms_base = a.customized_copy()
 				ms_all = ms_base.complete_set()
@@ -54,32 +54,18 @@ class ClassData():
 				a.setup_binner(auto_binning=True)
 				a.binner()
 				e_val = a.quasi_normalize_structure_factors()
-				ee = list(e_val.expand_to_p1().f_sq_as_f().data())
+				E = list(e_val.expand_to_p1().f_sq_as_f().data())
 				# Convert miller hkl to polar P1 space group
 				polar_coordinates = list(C.reciprocal_space_vector(P1))
-				xx = []
-				yy = []
-				zz = []
+				X = []
+				Y = []
+				Z = []
 				for x, y, z in polar_coordinates:
-					xx.append(x)
-					yy.append(y)
-					zz.append(z)
+					X.append(x)
+					Y.append(y)
+					Z.append(z)
 				C = str(C)[1:-1]
 				C = tuple(map(str, C.split(', ')))
-				NC = []
-				for x, y, z, r, e in zip(xx, yy, zz, rr, ee):
-					if r >= 10.0 or r <= 2.5: continue
-					else: NC.append((x, y, z, r, e))
-				# Sort
-				SORTED = sorted(NC, reverse=True, key=lambda c:c[4])
-				SORTED = SORTED[:]
-				X, Y, Z, R, E = [], [], [], [], []
-				for i in SORTED:
-					X.append(i[0])
-					Y.append(i[1])
-					Z.append(i[2])
-					R.append(i[3])
-					E.append(i[4])
 				return(S, C, X, Y, Z, R, E)
 	def labels(self, filename):
 		structure = Bio.PDB.PDBParser(QUIET=True).get_structure('X', filename)
@@ -208,8 +194,7 @@ def VectoriseClass(filename='DeepClass.csv',
 			e = Pts[4::5]
 			NC = []
 			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
-				if rr >= Rmax or rr <= Rmin or ee >= Emax or ee <= Emin: continue
-				NC.append((xx, yy, zz, rr, ee))
+				if Rmin<=rr<=Rmax and Emin<=ee<=Emax: NC.append((xx, yy, zz, rr, ee))
 			# 7.5 Sort and choose according to top E-values
 			Pts = sorted(NC, reverse=True, key=lambda c:c[4])
 			Pts = Pts[:max_size]
