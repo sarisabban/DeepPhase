@@ -49,15 +49,15 @@ To compile the dataset for DeepPhase
 
 To vectorise and serialise all the reflection points for DeepClass:
 
-`python crystal.py --Vecclass FILENAME.csv all` or `python crystal.py -vc FILENAME.csv all`
+`python crystal.py --VecClass FILENAME.csv all` or `python crystal.py -vC FILENAME.csv all`
 
 To compile the top 10000 reflection points (sorted by E-Value) for DeepClass
 
-`python crystal.py --Vecclass FILENAME.csv 10000` or `python crystal.py -vc FILENAME.csv 10000`
+`python crystal.py --VecClass FILENAME.csv 10000` or `python crystal.py -vC FILENAME.csv 10000`
 
 To vectorise and serialise all the reflection points for DeepPhase (can only vectorise all points):
 
-`python crystal.py --Vecphase FILENAME.csv` or `python crystal.py -vp FILENAME.csv`
+`python crystal.py --VecPhase FILENAME.csv` or `python crystal.py -vP FILENAME.csv`
 
 ### Run Training:
 
