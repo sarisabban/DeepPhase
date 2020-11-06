@@ -13,8 +13,8 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 parser = argparse.ArgumentParser(description='Compiling X-ray diffraction datasets')
 parser.add_argument('-C' , '--Class'   , nargs='+', help='Compile DeepClass protein classification dataset, include filename of PDB IDs')
 parser.add_argument('-P' , '--Phase'   , nargs='+', help='Compile DeepPhase protein phase calculation dataset, include filename of PDB IDs')
-parser.add_argument('-vc', '--Vecclass', nargs='+', help='Vectorise and serialise the DeepClass protein classification dataset, include maximum number of reflections of leave empty for all reflections')
-parser.add_argument('-vp', '--Vecphase', nargs='+', help='Vectorise and serialise the DeepPhase protein phase calculation dataset, include maximum number of reflections of leave empty for all reflections')
+parser.add_argument('-vC', '--VecClass', nargs='+', help='Vectorise and serialise the DeepClass protein classification dataset, include maximum number of reflections of leave empty for all reflections')
+parser.add_argument('-vP', '--VecPhase', nargs='+', help='Vectorise and serialise the DeepPhase protein phase calculation dataset, include maximum number of reflections of leave empty for all reflections')
 args = parser.parse_args()
 
 class ClassData():
@@ -144,7 +144,7 @@ class ClassData():
 		os.remove('temp')
 
 def VectoriseClass(filename='DeepClass.csv',
-	max_size='1000', Rmin=2.50, Rmax=3.00, Emin=0.00, Emax=1.10,
+	max_size='100', Rmin=2.50, Rmax=10.0, Emin=0.00, Emax=4.00,
 	fp=np.float64, ip=np.int64, Pids=False):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
@@ -199,18 +199,29 @@ def VectoriseClass(filename='DeepClass.csv',
 			Pts = sorted(NC, reverse=True, key=lambda c:c[4])
 			Pts = Pts[:max_size]
 			Pts = [i for sub in Pts for i in sub]
-		# 8. Padding
-		if len(Pts) < 5*max_size:
-			dif = 5*max_size - len(Pts)
-			for i in range(dif): Pts.append(0.0)
-		assert len(Pts) == 5*max_size, 'Max number of points incorrect'
-		# 9. Isolate different points data
-		X.append(np.array(Pts[0::5], dtype=fp))
-		Y.append(np.array(Pts[1::5], dtype=fp))
-		Z.append(np.array(Pts[2::5], dtype=fp))
-		R.append(np.array(Pts[3::5], dtype=fp))
-		E.append(np.array(Pts[4::5], dtype=fp))
-	# 10. Build arrays
+		# 8. Isolate different points data
+		Xp = Pts[0::5]
+		Yp = Pts[1::5]
+		Zp = Pts[2::5]
+		Rp = Pts[3::5]
+		Ep = Pts[4::5]
+		# 9. Padding
+		if len(Xp) < max_size:
+			dif = max_size - len(Xp)
+			for i in range(dif):
+				Xp.append(-0.4)
+				Yp.append(-0.4)
+				Zp.append(-0.4)
+				Rp.append(Rmin)
+				Ep.append(Emin)
+		assert len(Xp) == max_size, 'Max number of points incorrect'
+		# 10. Export points
+		X.append(np.array(Xp, dtype=fp))
+		Y.append(np.array(Yp, dtype=fp))
+		Z.append(np.array(Zp, dtype=fp))
+		R.append(np.array(Rp, dtype=fp))
+		E.append(np.array(Ep, dtype=fp))
+	# 11. Build arrays
 	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
 	I   = np.array(I)
 	S   = np.array(S)
@@ -221,7 +232,7 @@ def VectoriseClass(filename='DeepClass.csv',
 	Z   = np.array(Z)
 	R   = np.array(R)
 	E   = np.array(E)
-	# 11. One-Hot encoding and normalisation
+	# 12. One-Hot encoding and normalisation
 	''' Y labels '''
 	L[L=='Helix'] = 0
 	L[L=='Sheet'] = 1
@@ -252,7 +263,7 @@ def VectoriseClass(filename='DeepClass.csv',
 	mini = Emin
 	maxi = Emax
 	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
-	# 12. Construct tensors - final features
+	# 13. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
 	Coord = np.array([X, Y, Z, R, E])
@@ -264,7 +275,7 @@ def VectoriseClass(filename='DeepClass.csv',
 	print('Space =', Space.shape)
 	print('UnitC =', UnitC.shape)
 	print('Coord =', Coord.shape)
-	# 13. Serialise tensors
+	# 14. Serialise tensors
 	with h5py.File('Y.hdf5', 'w') as Yh:
 		dset = Yh.create_dataset('default', data=y)
 	with h5py.File('Space.hdf5', 'w') as Sh:
@@ -327,18 +338,6 @@ class PhaseData():
 				a.binner()
 				e_val = a.quasi_normalize_structure_factors()
 				E = list(e_val.expand_to_p1().f_sq_as_f().data())
-		nX, nY, nZ, nR, nE, nP = [], [], [], [], [], []
-		for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
-			if r >= 10.0 or r <= 2.5:
-				continue
-			else:
-				nX.append(x)
-				nY.append(y)
-				nZ.append(z)
-				nR.append(r)
-				nE.append(e)
-				nP.append(p)
-		X, Y, Z, R, E, P = nX, nY, nZ, nR, nE, nP
 		return(S, C, X, Y, Z, R, E, P)
 	def run(self, IDs='IDs.txt'):
 		with open('temp', 'w') as temp:
@@ -414,25 +413,40 @@ def VectorisePhase(filename='DeepPhase.csv', fp=np.float16, ip=np.int16):
 		# 5. Isolate labels and crystal data columns
 		line= all_lines_variable[i]
 		line= line.strip().split(',')
-		if len(line) <= 500000:
+		# 5.1 Isolate structures < 10,000 reflection
+		if len(line[8:]) <= 10000*6:
 			S.append(np.array(int(line[1]), dtype=ip))
 			UCe.append(np.array([float(i) for i in line[2:5]], dtype=fp))
 			UCa.append(np.array([float(i) for i in line[5:8]], dtype=fp))
 			# 6. Isolate points data columns
 			Pts = line[8:]
 			Pts = [float(i) for i in Pts]
-			if len(Pts) < 6*max_size:
-				dif = 6*max_size - len(Pts)
-				for i in range(dif): Pts.append(0.0)
-			assert len(Pts) == 6*max_size, 'Max number of points incorrect'
 			# 7. Isolate different points data
-			X.append(np.array(Pts[0::6], dtype=fp))
-			Y.append(np.array(Pts[1::6], dtype=fp))
-			Z.append(np.array(Pts[2::6], dtype=fp))
-			R.append(np.array(Pts[3::6], dtype=fp))
-			E.append(np.array(Pts[4::6], dtype=fp))
-			P.append(np.array(Pts[5::6], dtype=fp))
-	# 8. Build arrays
+			Xp = Pts[0::6]
+			Yp = Pts[1::6]
+			Zp = Pts[2::6]
+			Rp = Pts[3::6]
+			Ep = Pts[4::6]
+			Pp = Pts[5::6]
+			# 8. Padding
+			if len(Xp) < max_size:
+				dif = max_size - len(Xp)
+				for i in range(dif):
+					Xp.append(-0.4)
+					Yp.append(-0.4)
+					Zp.append(-0.4)
+					Rp.append(2.5)
+					Ep.append(0.0)
+					Pp.append(-3.14159)
+			assert len(Xp) == max_size, 'Max number of points incorrect'
+			# 9. Export points
+			X.append(np.array(Xp, dtype=fp))
+			Y.append(np.array(Yp, dtype=fp))
+			Z.append(np.array(Zp, dtype=fp))
+			R.append(np.array(Rp, dtype=fp))
+			E.append(np.array(Ep, dtype=fp))
+			P.append(np.array(Pp, dtype=fp))
+	# 10. Build arrays
 	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
 	S = np.array(S)
 	UCe = np.array(UCe)
@@ -443,7 +457,7 @@ def VectorisePhase(filename='DeepPhase.csv', fp=np.float16, ip=np.int16):
 	R = np.array(R)
 	E = np.array(E)
 	P = np.array(P)
-	# 9. One-Hot encoding and normalisation
+	# 11. One-Hot encoding and normalisation
 	''' Y labels '''
 	mini = np.amin(P)
 	maxi = np.amax(P)
@@ -474,14 +488,18 @@ def VectorisePhase(filename='DeepPhase.csv', fp=np.float16, ip=np.int16):
 	mini = 0
 	maxi = np.amax(E)
 	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
-	# 10. Construct tensors - final features
+	# 12. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
 	Coord = np.array([X, Y, Z, R, E])
 	Coord = np.swapaxes(Coord, 0, 2)
 	Coord = np.swapaxes(Coord, 0, 1)
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
-	# 11. Serialise tensors
+	# 13. Serialise tensors
+	print('Phase =', Phase.shape)
+	print('Space =', Space.shape)
+	print('UnitC =', UnitC.shape)
+	print('Coord =', Coord.shape)
 	with h5py.File('Phase.hdf5', 'w') as Ph:
 		dset = Ph.create_dataset('default', data=Phase)
 	with h5py.File('Space.hdf5', 'w') as Sh:
@@ -498,9 +516,9 @@ def main():
 	elif args.Phase:
 		Phs = PhaseData()
 		Phs.run(IDs=sys.argv[2])
-	elif args.Vecclass:
+	elif args.VecClass:
 		VectoriseClass(filename=sys.argv[2], max_size=sys.argv[3])
-	elif args.Vecphase:
+	elif args.VecPhase:
 		VectorisePhase(filename=sys.argv[2])
 
 if __name__ == '__main__': main()
