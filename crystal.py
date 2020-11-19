@@ -7,7 +7,7 @@ import urllib
 import Bio.PDB
 import argparse
 import numpy as np
-from iotbx.reflection_file_reader import any_reflection_file
+#from iotbx.reflection_file_reader import any_reflection_file
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 parser = argparse.ArgumentParser(description='Compiling X-ray diffraction datasets')
@@ -143,7 +143,7 @@ class ClassData():
 				for line in t: f.write(line)
 		os.remove('temp')
 
-def VectoriseClass(filename='DeepClass.csv',
+def VectoriseClass_NR(filename='DeepClass.csv',
 	max_size='100', Rmin=2.50, Rmax=10.0, Emin=0.00, Emax=4.00,
 	fp=np.float64, ip=np.int64, Pids=False):
 	'''
@@ -285,7 +285,139 @@ def VectoriseClass(filename='DeepClass.csv',
 	with h5py.File('Coord.hdf5', 'w') as Ch:
 		dset = Ch.create_dataset('default', data=Coord)
 	if Pids == True:
-		I = [n.encode('ascii', 'ignore') for n in I]	
+		I = [n.encode('ascii', 'ignore') for n in I]
+		with h5py.File('IDs.hdf5', 'w') as ii:
+			dset = ii.create_dataset('default', data=I)
+
+def VectoriseClass_SD(filename='DeepClass.csv',
+	max_size='100', Rmin=2.50, Rmax=10.0, Emin=0.00, Emax=4.00,
+	fp=np.float64, ip=np.int64, Pids=False):
+	'''
+	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
+	this function vectorises the dataset normalises it as well as construct the
+	final tensors and export the result as a serial. It also allows construction
+	of datasets with different point sizes
+	'''
+	# 1. Find max_size number
+	try:
+		max_size = int(max_size)
+		tick = True
+	except:
+		with open(filename) as f:
+			header = f.readline()
+			header = header.strip().split(',')[9:]
+			max_size = int(len(header)/5)
+		tick = False
+	# 2. Find number of rows
+	rows = len(open(filename).readlines()) - 1
+	# 3. Generate a list of random number of rows
+	lines = list(range(1, rows + 1))
+	random.shuffle(lines)
+	# 4. Open CSV file
+	with open(filename, 'r') as File:
+		all_lines_variable = File.readlines()
+	L = np.array([])
+	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
+	I = np.array([])
+	for i in lines:
+		# 5. Isolate labels and crystal data columns
+		line= all_lines_variable[i]
+		line= line.strip().split(',')
+		I = np.append(I, np.array(str(line[0]), dtype=str))
+		L = np.append(L, np.array(str(line[1]), dtype=str))
+		S.append(np.array(int(line[2]), dtype=ip))
+		UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
+		UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
+		# 6. Isolate points data columns
+		Pts = line[9:]
+		Pts = [float(i) for i in Pts]
+		# 7. Sort by E-value and turnicate
+		if tick == True:
+			x = Pts[0::5]
+			y = Pts[1::5]
+			z = Pts[2::5]
+			r = Pts[3::5]
+			e = Pts[4::5]
+			NC = []
+			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
+				if Rmin<=rr<=Rmax and Emin<=ee<=Emax: NC.append((xx, yy, zz, rr, ee))
+			# 7.5 Sort and choose according to top E-values
+			Pts = sorted(NC, reverse=True, key=lambda c:c[4])
+			Pts = Pts[:max_size]
+			Pts = [i for sub in Pts for i in sub]
+		# 8. Isolate different points data
+		Xp = Pts[0::5]
+		Yp = Pts[1::5]
+		Zp = Pts[2::5]
+		Rp = Pts[3::5]
+		Ep = Pts[4::5]
+		# 9. Padding
+		if len(Xp) < max_size:
+			dif = max_size - len(Xp)
+			for i in range(dif):
+				Xp.append(-0.4)
+				Yp.append(-0.4)
+				Zp.append(-0.4)
+				Rp.append(Rmin)
+				Ep.append(Emin)
+		assert len(Xp) == max_size, 'Max number of points incorrect'
+		# 10. Export points
+		X.append(np.array(Xp, dtype=fp))
+		Y.append(np.array(Yp, dtype=fp))
+		Z.append(np.array(Zp, dtype=fp))
+		R.append(np.array(Rp, dtype=fp))
+		E.append(np.array(Ep, dtype=fp))
+	# 11. Build arrays
+	assert len(X[0]) == len(X[1]), 'Max number of points incorrect'
+	I   = np.array(I)
+	S   = np.array(S)
+	UCe = np.array(UCe)
+	UCa = np.array(UCa)
+	X   = np.array(X)
+	Y   = np.array(Y)
+	Z   = np.array(Z)
+	R   = np.array(R)
+	E   = np.array(E)
+	# 12. One-Hot encoding and normalisation
+	''' Y labels '''
+	L[L=='Helix'] = 0
+	L[L=='Sheet'] = 1
+	y = L.astype(np.int)
+	''' X features '''
+	categories = [sorted([x for x in range(1, 230+1)])]
+	S = S.reshape(-1, 1)
+	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+	S = onehot_encoder.fit_transform(S)      # One-hot encode [Space Groups]
+	UCe = (UCe - np.mean(UCe)) / np.std(UCe) # Standardise    [Unit Cell Edges]
+	UCa = (UCa - np.mean(UCa)) / np.std(UCa) # Standardise    [Unit Cell Angles]
+	X = (X - np.mean(X)) / np.std(X)         # Standardise    [X Coordinates]
+	Y = (Y - np.mean(Y)) / np.std(Y)         # Standardise    [Y Coordinates]
+	Z = (Z - np.mean(Z)) / np.std(Z)         # Standardise    [Z Coordinates]
+	R = (R - np.mean(R)) / np.std(R)         # Standardise    [Resolution]
+	E = (E - np.mean(E)) / np.std(E)         # Standardise    [E-value]
+	# 13. Construct tensors - final features
+	Space = S
+	UnitC = np.concatenate([UCe, UCa], axis=1)
+	Coord = np.array([X, Y, Z, R, E])
+	Coord = np.swapaxes(Coord, 0, 2)
+	Coord = np.swapaxes(Coord, 0, 1)
+	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
+	print('I =', I.shape)
+	print('Y =', y.shape)
+	print('Space =', Space.shape)
+	print('UnitC =', UnitC.shape)
+	print('Coord =', Coord.shape)
+	# 14. Serialise tensors
+	with h5py.File('Y.hdf5', 'w') as Yh:
+		dset = Yh.create_dataset('default', data=y)
+	with h5py.File('Space.hdf5', 'w') as Sh:
+		dset = Sh.create_dataset('default', data=Space)
+	with h5py.File('UnitC.hdf5', 'w') as Uh:
+		dset = Uh.create_dataset('default', data=UnitC)
+	with h5py.File('Coord.hdf5', 'w') as Ch:
+		dset = Ch.create_dataset('default', data=Coord)
+	if Pids == True:
+		I = [n.encode('ascii', 'ignore') for n in I]
 		with h5py.File('IDs.hdf5', 'w') as ii:
 			dset = ii.create_dataset('default', data=I)
 
@@ -340,7 +472,7 @@ class PhaseData():
 				E = list(e_val.expand_to_p1().f_sq_as_f().data())
 		return(S, C, X, Y, Z, R, E, P)
 	def run(self, IDs='IDs.txt'):
-		with open('temp', 'w') as temp:
+		with open('temp', 'a') as temp:
 			size = []
 			with open(IDs) as f:
 				line = f.read().strip().lower().split(',')
@@ -517,7 +649,8 @@ def main():
 		Phs = PhaseData()
 		Phs.run(IDs=sys.argv[2])
 	elif args.VecClass:
-		VectoriseClass(filename=sys.argv[2], max_size=sys.argv[3])
+		VectoriseClass_NR(filename=sys.argv[2], max_size=sys.argv[3])
+#		VectoriseClass_SD(filename=sys.argv[2], max_size=sys.argv[3])
 	elif args.VecPhase:
 		VectorisePhase(filename=sys.argv[2])
 
