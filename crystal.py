@@ -7,7 +7,7 @@ import urllib
 import Bio.PDB
 import argparse
 import numpy as np
-#from iotbx.reflection_file_reader import any_reflection_file
+from iotbx.reflection_file_reader import any_reflection_file
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 parser = argparse.ArgumentParser(description='Compiling X-ray diffraction datasets')
@@ -290,7 +290,7 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 			dset = ii.create_dataset('default', data=I)
 
 def VectoriseClass_SD(filename='DeepClass.csv',
-	max_size='100', Rmin=2.50, Rmax=10.0, Emin=0.00, Emax=4.00,
+	max_size='100', Rmin=4.00, Rmax=10.0, Emin=0.00, Emax=4.00,
 	fp=np.float64, ip=np.int64, Pids=False):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
