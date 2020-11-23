@@ -209,11 +209,11 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 		if len(Xp) < max_size:
 			dif = max_size - len(Xp)
 			for i in range(dif):
-				Xp.append(-0.4)
-				Yp.append(-0.4)
-				Zp.append(-0.4)
-				Rp.append(Rmin)
-				Ep.append(Emin)
+				Xp.append(0.0)
+				Yp.append(0.0)
+				Zp.append(0.0)
+				Rp.append(0.0)
+				Ep.append(0.0)
 		assert len(Xp) == max_size, 'Max number of points incorrect'
 		# 10. Export points
 		X.append(np.array(Xp, dtype=fp))
@@ -241,28 +241,14 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 	categories = [sorted([x for x in range(1, 230+1)])]
 	S = S.reshape(-1, 1)
 	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-	S = onehot_encoder.fit_transform(S) # One-hot encode S   [Space Groups]
-	mini = np.amin(UCe)
-	maxi = np.amax(UCe)
-	UCe = (UCe-mini)/(maxi-mini)     # Normalise min/max UCe [Unit Cell Edges]
-	mini = 90.0
-	maxi = 180.0
-	UCa = (UCa-mini)/(maxi-mini)     # Normalise min/max UCa [Unit Cell Angles]
-	mini = -0.4
-	maxi = 0.4
-	X = (X-mini)/(maxi-mini)         # Normalise min/max X   [X Coordinates]
-	mini = -0.4
-	maxi = 0.4
-	Y = (Y-mini)/(maxi-mini)         # Normalise min/max Y   [Y Coordinates]
-	mini = -0.4
-	maxi = 0.4
-	Z = (Z-mini)/(maxi-mini)         # Normalise min/max Z   [Z Coordinates]
-	mini = Rmin
-	maxi = Rmax
-	R = (R-mini)/(maxi-mini)         # Normalise min/max R   [Resolution]
-	mini = Emin
-	maxi = Emax
-	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
+	S   = onehot_encoder.fit_transform(S)                # One-hot encode [Space Groups]
+	UCe = (UCe-np.amin(UCe))/(np.amax(UCe)-np.amin(UCe)) # Normalise      [Unit Cell Edges]
+	UCa = (UCa-np.amin(UCa))/(np.amin(UCa)-np.amin(UCa)) # Normalise      [Unit Cell Angles]
+	X   = (X-np.amin(X))/(np.amax(X)-np.amin(X))         # Normalise      [X Coordinates]
+	Y   = (Y-np.amin(Y))/(np.amax(Y)-np.amin(Y))         # Normalise      [Y Coordinates]
+	Z   = (Z-np.amin(Z))/(np.amax(Z)-np.amin(Z))         # Normalise      [Z Coordinates]
+	R   = (R-np.amin(R))/(np.amax(R)-np.amin(R))         # Normalise      [Resolution]
+	E   = (E-np.amin(E))/(np.amax(E)-np.amin(E))         # Normalise      [E-value]
 	# 13. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
@@ -340,9 +326,10 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 			e = Pts[4::5]
 			NC = []
 			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
-				if Rmin<=rr<=Rmax and Emin<=ee<=Emax: NC.append((xx, yy, zz, rr, ee))
-			# 7.5 Sort and choose according to top E-values
-			Pts = sorted(NC, reverse=True, key=lambda c:c[4])
+				if and xx!=0.0 and xx!=-0.0 and yy!=0.0 and yy!=-0.0 and zz>0 and Rmin<=rr<=Rmax and ee!=1.0: NC.append((xx, yy, zz, rr, ee))
+				#if Rmin<=rr<=Rmax and Emin<=ee<=Emax: NC.append((xx, yy, zz, rr, ee))
+			# 7.5 Sort and choose according to largest R
+			Pts = sorted(NC, reverse=True, key=lambda c:c[3])
 			Pts = Pts[:max_size]
 			Pts = [i for sub in Pts for i in sub]
 		# 8. Isolate different points data
@@ -355,11 +342,11 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 		if len(Xp) < max_size:
 			dif = max_size - len(Xp)
 			for i in range(dif):
-				Xp.append(-0.4)
-				Yp.append(-0.4)
-				Zp.append(-0.4)
-				Rp.append(Rmin)
-				Ep.append(Emin)
+				Xp.append(0.0)
+				Yp.append(0.0)
+				Zp.append(0.0)
+				Rp.append(0.0)
+				Ep.append(0.0)
 		assert len(Xp) == max_size, 'Max number of points incorrect'
 		# 10. Export points
 		X.append(np.array(Xp, dtype=fp))
@@ -387,14 +374,14 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 	categories = [sorted([x for x in range(1, 230+1)])]
 	S = S.reshape(-1, 1)
 	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-	S = onehot_encoder.fit_transform(S)      # One-hot encode [Space Groups]
-	UCe = (UCe - np.mean(UCe)) / np.std(UCe) # Standardise    [Unit Cell Edges]
-	UCa = (UCa - np.mean(UCa)) / np.std(UCa) # Standardise    [Unit Cell Angles]
-	X = (X - np.mean(X)) / np.std(X)         # Standardise    [X Coordinates]
-	Y = (Y - np.mean(Y)) / np.std(Y)         # Standardise    [Y Coordinates]
-	Z = (Z - np.mean(Z)) / np.std(Z)         # Standardise    [Z Coordinates]
-	R = (R - np.mean(R)) / np.std(R)         # Standardise    [Resolution]
-	E = (E - np.mean(E)) / np.std(E)         # Standardise    [E-value]
+	S = onehot_encoder.fit_transform(S)        # One-hot encode [Space Groups]
+	UCe = (UCe-np.mean(UCe))/np.std(UCe)       # Standardise    [Unit Cell Edges]
+	UCa = (UCa-np.mean(UCa))/np.std(UCa)       # Standardise    [Unit Cell Angles]
+	X = (X-np.mean(X))/np.std(X)               # Standardise    [X Coordinates]
+	Y = (Y-np.mean(Y))/np.std(Y)               # Standardise    [Y Coordinates]
+	Z = (Z-np.amin(Z))/(np.amax(Z)-np.amin(Z)) # Normalise      [Z Coordinates]
+	R = (R-np.amin(R))/(np.amax(R)-np.amin(R)) # Normalise      [Resolution]
+	E = (E-np.amin(E))/(np.amax(E)-np.amin(E)) # Normalise      [E-value]
 	# 13. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
@@ -593,33 +580,19 @@ def VectorisePhase(filename='DeepPhase.csv', fp=np.float16, ip=np.int16):
 	''' Y labels '''
 	mini = np.amin(P)
 	maxi = np.amax(P)
-	Phase = (P-mini)/(maxi-mini)     # Normalise min/max P   [Phase]
+	Phase = (P-mini)/(maxi-mini)               # Normalise      [Phase]
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
 	S = S.reshape(-1, 1)
 	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-	S = onehot_encoder.fit_transform(S) # One-hot encode S   [Space Groups]
-	mini = np.amin(UCe)
-	maxi = np.amax(UCe)
-	UCe = (UCe-mini)/(maxi-mini)     # Normalise min/max UCe [Unit Cell Edges]
-	mini = 90.0
-	maxi = 180.0
-	UCa = (UCa-mini)/(maxi-mini)     # Normalise min/max UCa [Unit Cell Angles]
-	mini = -0.4
-	maxi = 0.4
-	X = (X-mini)/(maxi-mini)         # Normalise min/max X   [X Coordinates]
-	mini = -0.4
-	maxi = 0.4
-	Y = (Y-mini)/(maxi-mini)         # Normalise min/max Y   [Y Coordinates]
-	mini = -0.4
-	maxi = 0.4
-	Z = (Z-mini)/(maxi-mini)         # Normalise min/max Z   [Z Coordinates]
-	mini = 2.5
-	maxi = 10
-	R = (R-mini)/(maxi-mini)         # Normalise min/max R   [Resolution]
-	mini = 0
-	maxi = np.amax(E)
-	E = (E-mini)/(maxi-mini)         # Normalise min/max E   [E-value]
+	S = onehot_encoder.fit_transform(S)        # One-hot encode [Space Groups]
+	UCe = (UCe-np.mean(UCe))/np.std(UCe)       # Standardise    [Unit Cell Edges]
+	UCa = (UCa-np.mean(UCa))/np.std(UCa)       # Standardise    [Unit Cell Angles]
+	X = (X-np.mean(X))/np.std(X)               # Standardise    [X Coordinates]
+	Y = (Y-np.mean(Y))/np.std(Y)               # Standardise    [Y Coordinates]
+	Z = (Z-np.amin(Z))/(np.amax(Z)-np.amin(Z)) # Normalise      [Z Coordinates]
+	R = (R-np.amin(R))/(np.amax(R)-np.amin(R)) # Normalise      [Resolution]
+	E = (E-np.amin(E))/(np.amax(E)-np.amin(E)) # Normalise      [E-value]
 	# 12. Construct tensors - final features
 	Space = S
 	UnitC = np.concatenate([UCe, UCa], axis=1)
@@ -649,8 +622,8 @@ def main():
 		Phs = PhaseData()
 		Phs.run(IDs=sys.argv[2])
 	elif args.VecClass:
-		VectoriseClass_NR(filename=sys.argv[2], max_size=sys.argv[3])
-#		VectoriseClass_SD(filename=sys.argv[2], max_size=sys.argv[3])
+#		VectoriseClass_NR(filename=sys.argv[2], max_size=sys.argv[3])
+		VectoriseClass_SD(filename=sys.argv[2], max_size=sys.argv[3])
 	elif args.VecPhase:
 		VectorisePhase(filename=sys.argv[2])
 
