@@ -144,7 +144,7 @@ class ClassData():
 		os.remove('temp')
 
 def VectoriseClass_NR(filename='DeepClass.csv',
-	max_size='100', Rmin=2.50, Rmax=10.0, Emin=0.00, Emax=4.00,
+	max_size='1000', Rmin=3.00, Rmax=10.0, Emin=0.00, Emax=9.00,
 	fp=np.float64, ip=np.int64, Pids=False):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
@@ -185,7 +185,7 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 		# 6. Isolate points data columns
 		Pts = line[9:]
 		Pts = [float(i) for i in Pts]
-		# 7. Sort by E-value and turnicate
+		# 7. Sort and turnicate
 		if tick == True:
 			x = Pts[0::5]
 			y = Pts[1::5]
@@ -195,8 +195,8 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 			NC = []
 			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
 				if Rmin<=rr<=Rmax and Emin<=ee<=Emax: NC.append((xx, yy, zz, rr, ee))
-			# 7.5 Sort and choose according to top E-values
-			Pts = sorted(NC, reverse=True, key=lambda c:c[4])
+			# 7.5 Sort and choose according to largest R
+			Pts = sorted(NC, reverse=True, key=lambda c:c[3])
 			Pts = Pts[:max_size]
 			Pts = [i for sub in Pts for i in sub]
 		# 8. Isolate different points data
@@ -276,7 +276,7 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 			dset = ii.create_dataset('default', data=I)
 
 def VectoriseClass_SD(filename='DeepClass.csv',
-	max_size='100', Rmin=4.00, Rmax=10.0, Emin=0.00, Emax=4.00,
+	max_size='1000', Rmin=3.00, Rmax=10.0, Emin=0.00, Emax=9.00,
 	fp=np.float64, ip=np.int64, Pids=False):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
@@ -317,7 +317,7 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 		# 6. Isolate points data columns
 		Pts = line[9:]
 		Pts = [float(i) for i in Pts]
-		# 7. Sort by E-value and turnicate
+		# 7. Sort and turnicate
 		if tick == True:
 			x = Pts[0::5]
 			y = Pts[1::5]
