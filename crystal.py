@@ -194,7 +194,8 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 			e = Pts[4::5]
 			NC = []
 			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
-				if xx!=0.0 and xx!=-0.0 and yy!=0.0 and yy!=-0.0 and zz>0 and Rmin<=rr<=Rmax and ee!=1.0: NC.append((xx, yy, zz, rr, ee))
+				if abs(xx)>0.1 and abs(yy)>0.1 and zz>0.1 and Rmin<=rr and abs(ee-1)>0.5 and ee!=0: NC.append((xx, yy, zz, rr, ee))
+				#if xx!=0.0 and xx!=-0.0 and yy!=0.0 and yy!=-0.0 and zz>0 and Rmin<=rr<=Rmax and ee!=1.0: NC.append((xx, yy, zz, rr, ee))
 				#if Rmin<=rr<=Rmax and Emin<=ee<=Emax: NC.append((xx, yy, zz, rr, ee))
 			# 7.5 Sort and choose according to largest R
 			Pts = sorted(NC, reverse=True, key=lambda c:c[3])
@@ -327,7 +328,8 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 			e = Pts[4::5]
 			NC = []
 			for xx, yy, zz, rr, ee in zip(x, y, z, r, e):
-				if xx!=0.0 and xx!=-0.0 and yy!=0.0 and yy!=-0.0 and zz>0 and Rmin<=rr<=Rmax and ee!=1.0: NC.append((xx, yy, zz, rr, ee))
+				if abs(xx)>0.1 and abs(yy)>0.1 and zz>0.1 and Rmin<=rr and abs(ee-1)>0.5 and ee!=0: NC.append((xx, yy, zz, rr, ee))
+				#if xx!=0.0 and xx!=-0.0 and yy!=0.0 and yy!=-0.0 and zz>0 and Rmin<=rr<=Rmax and ee!=1.0: NC.append((xx, yy, zz, rr, ee))
 				#if Rmin<=rr<=Rmax and Emin<=ee<=Emax: NC.append((xx, yy, zz, rr, ee))
 			# 7.5 Sort and choose according to largest R
 			Pts = sorted(NC, reverse=True, key=lambda c:c[3])
