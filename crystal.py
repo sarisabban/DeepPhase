@@ -282,7 +282,7 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 	fp=np.float64, ip=np.int64, Pids=False):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
-	this function vectorises the dataset normalises it as well as construct the
+	this function vectorises the dataset standerdise it as well as construct the
 	final tensors and export the result as a serial. It also allows construction
 	of datasets with different point sizes
 	'''
