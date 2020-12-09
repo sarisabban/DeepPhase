@@ -51,9 +51,9 @@ To vectorise and serialise all the reflection points for DeepClass:
 
 `python crystal.py --VecClass FILENAME.csv all` or `python crystal.py -vC FILENAME.csv all`
 
-To compile the top 10000 reflection points (sorted by E-Value) for DeepClass
+To vectorise and serialise randomly sampled 10,000 points and repeat the process 3 times used the following command: 
 
-`python crystal.py --VecClass FILENAME.csv 10000` or `python crystal.py -vC FILENAME.csv 10000`
+`python crystal.py --VecClass FILENAME.csv 10000 3` or `python crystal.py -vC FILENAME.csv 10000 3`
 
 To vectorise and serialise all the reflection points for DeepPhase (can only vectorise all points):
 
