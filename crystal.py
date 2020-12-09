@@ -21,10 +21,10 @@ class ClassData():
 	'''
 	Build a dataset for protein classification (Helix/Sheet)
 	from x-ray diffraction .mtz and .pbd files and compile all
-	the reflections
+	the reflections.
 	'''
 	def download(self, ID):
-		''' Downloads a structure's .mtz and .pdb files '''
+		''' Downloads a structure's .mtz and .pdb files. '''
 		Murl = 'http://edmaps.rcsb.org/coefficients/{}.mtz'.format(ID)
 		Purl = 'https://files.rcsb.org/download/{}.pdb'.format(ID)
 		urllib.request.urlretrieve(Murl, '{}.mtz'.format(ID))
@@ -150,7 +150,7 @@ def VectoriseClass_NR(filename='DeepClass.csv',
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
 	this function vectorises the dataset normalises it as well as construct the
 	final tensors and export the result as a serial. It also allows construction
-	of datasets with different point sizes
+	of datasets with different point sizes.
 	'''
 	# 1. Find max_size number
 	try:
@@ -282,9 +282,9 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 	fp=np.float64, ip=np.int64, Pids=False):
 	'''
 	Since the .csv file cannot be loaded into RAM even that of a supercomputer,
-	this function vectorises the dataset standerdise it as well as construct the
+	this function vectorises the dataset, standerdise, it as well as construct the
 	final tensors and export the result as a serial. It also allows construction
-	of datasets with different point sizes
+	of datasets with different point sizes.
 	'''
 	# 1. Find max_size number
 	try:
@@ -411,8 +411,104 @@ def VectoriseClass_SD(filename='DeepClass.csv',
 		with h5py.File('IDs.hdf5', 'w') as ii:
 			dset = ii.create_dataset('default', data=I)
 
+def VectoriseClass_SD_RS(filename='DeepClass.csv', max_size='15000',
+	fp=np.float64, ip=np.int64, Pids=False, export=True):
+	'''
+	Since the .csv file for this dataset would require larger RAM that what is
+	currently available, yet still need to train a network on as much reflection
+	points as possible this function randomly samples all points of each
+	example, vectorises the sampled points, standerdises them, construct the
+	final tensors then either output the result or export it as a serial.
+	It also allows construction of datasets with different point sizes.
+	'''
+	I = np.array([])
+	L = np.array([])
+	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
+	max_size = int(max_size)
+	with open(filename, 'r') as f:
+		next(f)
+		for line in f:
+			line = line.strip().split(',')
+			# 1. Isolate PDB IDs and labels
+			I = np.append(I, np.array(str(line[0]), dtype=str))
+			L = np.append(L, np.array(str(line[1]), dtype=str))
+			S.append(np.array(int(line[2]), dtype=ip))
+			UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
+			UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
+			# 2. Isolate points
+			T = line[9:]
+			T = [float(i) for i in T]
+			# 3. Random sampling of points
+			NC = [(x,y,z,r,e) for x,y,z,r,e in zip(T[0::5],T[1::5],T[2::5],T[3::5],T[4::5])]
+			T = [random.choice(NC) for x in range(max_size)]
+			assert len(T) == max_size, 'Max number of points incorrect'
+			T = [i for sub in T for i in sub]
+			# 4. Export points
+			X.append(np.array(T[0::5], dtype=fp))
+			Y.append(np.array(T[1::5], dtype=fp))
+			Z.append(np.array(T[2::5], dtype=fp))
+			R.append(np.array(T[3::5], dtype=fp))
+			E.append(np.array(T[4::5], dtype=fp))
+	# 5. Build arrays
+	I   = np.array(I)
+	S   = np.array(S)
+	UCe = np.array(UCe)
+	UCa = np.array(UCa)
+	X   = np.array(X)
+	Y   = np.array(Y)
+	Z   = np.array(Z)
+	R   = np.array(R)
+	E   = np.array(E)
+	# 6. One-Hot encoding and normalisation
+	''' Y labels '''
+	L[L=='Helix'] = 0
+	L[L=='Sheet'] = 1
+	y = L.astype(np.int)
+	''' X features '''
+	categories = [sorted([x for x in range(1, 230+1)])]
+	S = S.reshape(-1, 1)
+	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+	S = onehot_encoder.fit_transform(S)       # One-hot encode [Space Groups]
+	UCe = (UCe-np.mean(UCe))/np.std(UCe)      # Standardise    [Unit Cell Edge]
+	UCa = (UCa-np.mean(UCa))/np.std(UCa)      # Standardise    [Unit Cell Angle]
+	X = (X-np.mean(X))/np.std(X)              # Standardise    [X Coordinates]
+	Y = (Y-np.mean(Y))/np.std(Y)              # Standardise    [Y Coordinates]
+	Z = (Z-np.amin(Z))/(np.amax(Z)-np.amin(Z))# Normalise      [Z Coordinates]
+	R = (R-np.amin(R))/(np.amax(R)-np.amin(R))# Normalise      [Resolution]
+	E = (E-np.amin(E))/(np.amax(E)-np.amin(E))# Normalise      [E-value]
+	# 7. Construct tensors
+	Space = S
+	UnitC = np.concatenate([UCe, UCa], axis=1)
+	Coord = np.array([X, Y, Z, R, E])
+	Coord = np.swapaxes(Coord, 0, 2)
+	Coord = np.swapaxes(Coord, 0, 1)
+	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
+	# 8. Shuffle examples
+	Coord, UnitC, Space, y, I = shuffle(Coord, UnitC, Space, y, I)
+	print('I =', I.shape)
+	print('Y =', y.shape)
+	print('Space =', Space.shape)
+	print('UnitC =', UnitC.shape)
+	print('Coord =', Coord.shape)
+	if export:
+		# 9. Serialise tensors
+		with h5py.File('Y.hdf5', 'w') as Yh:
+			dset = Yh.create_dataset('default', data=y)
+		with h5py.File('Space.hdf5', 'w') as Sh:
+			dset = Sh.create_dataset('default', data=Space)
+		with h5py.File('UnitC.hdf5', 'w') as Uh:
+			dset = Uh.create_dataset('default', data=UnitC)
+		with h5py.File('Coord.hdf5', 'w') as Ch:
+			dset = Ch.create_dataset('default', data=Coord)
+		if Pids == True:
+			I = [n.encode('ascii', 'ignore') for n in I]
+			with h5py.File('IDs.hdf5', 'w') as ii:
+				dset = ii.create_dataset('default', data=I)
+	else:
+		return(Coord, UnitC, Space, y, I)
+
 class PhaseData():
-	''' Build a dataset for phase calculation from x-ray diffractions '''
+	''' Build a dataset for phase calculation from x-ray diffractions. '''
 	def download(self, filename):
 		''' Downloads a structure's .mtz file '''
 		url = 'http://edmaps.rcsb.org/coefficients/{}.mtz'.format(filename)
@@ -626,7 +722,9 @@ def main():
 		Phs.run(IDs=sys.argv[2])
 	elif args.VecClass:
 #		VectoriseClass_NR(filename=sys.argv[2], max_size=sys.argv[3])
-		VectoriseClass_SD(filename=sys.argv[2], max_size=sys.argv[3])
+#		VectoriseClass_SD(filename=sys.argv[2], max_size=sys.argv[3])
+		for samples in range(sys.argv[4]):
+			VectoriseClass_SD_RS(filename=sys.argv[2], max_size=sys.argv[3])
 	elif args.VecPhase:
 		VectorisePhase(filename=sys.argv[2])
 
