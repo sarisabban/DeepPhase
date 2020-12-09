@@ -727,7 +727,7 @@ def main():
 		for samples in range(n):
 			VectoriseClass_SD_RS(filename=sys.argv[2], max_size=sys.argv[3])
 			if n != 1:
-				print('---------Sample {}-----------'.format(samples+1))
+				print('---------Sample {}/{}-----------\n'.format(samples+1, n))
 				os.system('mv Y.hdf5 Y_{}.hdf5'.format(samples+1))
 				os.system('mv Space.hdf5 Space_{}.hdf5'.format(samples+1))
 				os.system('mv UnitC.hdf5 UnitC_{}.hdf5'.format(samples+1))
