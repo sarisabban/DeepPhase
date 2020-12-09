@@ -485,11 +485,6 @@ def VectoriseClass_SD_RS(filename='DeepClass.csv', max_size='15000',
 	S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
 	# 8. Shuffle examples
 	Coord, UnitC, Space, y, I = shuffle(Coord, UnitC, Space, y, I)
-	print('I =', I.shape)
-	print('Y =', y.shape)
-	print('Space =', Space.shape)
-	print('UnitC =', UnitC.shape)
-	print('Coord =', Coord.shape)
 	if export:
 		# 9. Serialise tensors
 		with h5py.File('Y.hdf5', 'w') as Yh:
@@ -504,6 +499,11 @@ def VectoriseClass_SD_RS(filename='DeepClass.csv', max_size='15000',
 			I = [n.encode('ascii', 'ignore') for n in I]
 			with h5py.File('IDs.hdf5', 'w') as ii:
 				dset = ii.create_dataset('default', data=I)
+		print('I =', I.shape)
+		print('Y =', y.shape)
+		print('Space =', Space.shape)
+		print('UnitC =', UnitC.shape)
+		print('Coord =', Coord.shape)
 	else:
 		return(Coord, UnitC, Space, y, I)
 
@@ -723,8 +723,17 @@ def main():
 	elif args.VecClass:
 #		VectoriseClass_NR(filename=sys.argv[2], max_size=sys.argv[3])
 #		VectoriseClass_SD(filename=sys.argv[2], max_size=sys.argv[3])
-		for samples in range(sys.argv[4]):
+		n = sys.argv[4]
+		for samples in range(n):
 			VectoriseClass_SD_RS(filename=sys.argv[2], max_size=sys.argv[3])
+			if n != 1:
+				print('---------Sample {}-----------'.format(samples+1))
+				os.system('mv Y.hdf5 Y_{}.hdf5'.format(samples+1))
+				os.system('mv Space.hdf5 Space_{}.hdf5'.format(samples+1))
+				os.system('mv UnitC.hdf5 UnitC_{}.hdf5'.format(samples+1))
+				os.system('mv Coord.hdf5 Coord_{}.hdf5'.format(samples+1))
+				if os.path.exists('IDs.hdf5'):
+					os.system('mv IDs.hdf5 IDs_{}.hdf5'.format(samples+1))
 	elif args.VecPhase:
 		VectorisePhase(filename=sys.argv[2])
 
