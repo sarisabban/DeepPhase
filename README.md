@@ -47,13 +47,9 @@ To compile the dataset for DeepPhase
 
 4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. Each tensor will be a separate file. Since there are a large number of reflection points and a large variation in the number of reflection points between files, these commands can also allow you to choose the top reflection points sorted by E-value. Any gaps in the dataset will be padded with zeros.
 
-To vectorise and serialise all the reflection points for DeepClass:
+To vectorise and serialise randomly sampled 15,000 points and repeat the process 3 times used the following command: 
 
-`python crystal.py --VecClass FILENAME.csv all` or `python crystal.py -vC FILENAME.csv all`
-
-To vectorise and serialise randomly sampled 10,000 points and repeat the process 3 times used the following command: 
-
-`python crystal.py --VecClass FILENAME.csv 10000 3` or `python crystal.py -vC FILENAME.csv 10000 3`
+`python crystal.py --VecClass FILENAME.csv 15000 3` or `python crystal.py -vC FILENAME.csv 15000 3`
 
 To vectorise and serialise all the reflection points for DeepPhase (can only vectorise all points):
 
