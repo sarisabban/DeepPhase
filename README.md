@@ -35,25 +35,19 @@ DeepPhase: This project is an attempt to calculate the phase of each reflection 
 
 3. Compile the dataset using one of the following commands:
 
-To compile the dataset for DeepClass
-
-`python crystal.py --Class PDBIDs.txt` or `python crystal.py -C PDBIDs.txt`
-
-To compile the dataset for DeepPhase
-
-`python crystal.py --Phase PDBIDs.txt` or `python crystal.py -P PDBIDs.txt`
+`python crystal.py --Dataset PDBIDs.txt` or `python crystal.py -D PDBIDs.txt`
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
-4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise them or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. Each tensor will be a separate file. Since there are a large number of reflection points and a large variation in the number of reflection points between files, these commands can also allow you to choose the top reflection points sorted by E-value. Any gaps in the dataset will be padded with zeros.
+4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise, standerdise, or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
 
-To vectorise and serialise randomly sampled 15,000 points and repeat the process 3 times used the following command: 
+To cover more points they will be randomly samples, each file will contain randomly samples NUMBER_OF_POINTS, to cover more points we can repeat the sampling for NUMBER_OF_SAMPLES. Each tensor will end up in a separate file
 
-`python crystal.py --VecClass FILENAME.csv 15000 3` or `python crystal.py -vC FILENAME.csv 15000 3`
+For DeepClass (protein classification dataset):
+`python crystal.py --Vectorise FILENAME.csv NUMBER_OF_POINTS NUMBER_OF_SAMPLES ` or `python crystal.py -V FILENAME.csv 15000 3`
 
-To vectorise and serialise all the reflection points for DeepPhase (can only vectorise all points):
-
-`python crystal.py --VecPhase FILENAME.csv` or `python crystal.py -vP FILENAME.csv`
+For DeepPhase (reflection point phase prediction dataset):
+`python crystal.py --Vectorise FILENAME.csv NUMBER_OF_POINTS NUMBER_OF_SAMPLES False` or `python crystal.py -V FILENAME.csv 15000 3 False`
 
 ### Run Training:
 
