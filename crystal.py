@@ -8,12 +8,12 @@ import Bio.PDB
 import argparse
 import numpy as np
 from sklearn.utils import shuffle
-from iotbx.reflection_file_reader import any_reflection_file
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-parser = argparse.ArgumentParser(description='Compiling X-ray diffraction datasets')
+parser = argparse.ArgumentParser(description='Compiling and vectorising X-ray crystal diffraction datasets')
 parser.add_argument('-D', '--Dataset'  , nargs='+', help='Compile a datset of protein reflections points, include a text file of PDB IDs')
-parser.add_argument('-V', '--Vectorise', nargs='+', help='Vectorise and serialise the datset')
+parser.add_argument('-V', '--Vectorise', nargs='+', help='Vectorise the datset only')
+parser.add_argument('-S', '--Serialise', nargs='+', help='Vectorise and serialise the datset')
 args = parser.parse_args()
 
 class Dataset():
@@ -145,33 +145,29 @@ class Dataset():
 						print('{}[-] {} Failed: problem compiling{}'\
 						.format(item.upper()))
 						continue
-			header = ['PDB_ID,Class,Space_Group,Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma']
+			h1 = 'PDB_ID,Class,Space_Group,'
+			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
+			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
+			head = [h1 + h2 + h3]
 			for i in range(1, max(size)+1):
-				header.append(',X_{},Y_{},Z_{},Resolution_{},E-value_{},Phase_{}'\
+				head.append(',X_{},Y_{},Z_{},Resolution_{},E-value_{},Phase_{}'\
 				.format(i, i, i, i, i, i))
-			header = ''.join(header)
+			head = ''.join(head)
 		with open('CrystalDataset.csv', 'w') as f:
 			with open('temp', 'r') as t:
-				f.write(header + '\n')
+				f.write(head + '\n')
 				for line in t: f.write(line)
 		os.remove('temp')
 
-def Vectorise(filename='CrystalDataset.csv', max_size='15000',
-	Pids=False, export=True, phase=False, Type='class',
-	fp=np.float64, ip=np.int64):
+def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
+	fp=np.float32, ip=np.int32):
 	'''
-	For DeepClass:
 	Since the .csv file for this dataset would require larger RAM than what is
 	currently available, yet we still need to train a network on as much
-	reflection points as possible this function randomly samples all points of
-	each example, vectorises the sampled points, standerdises them, constructs
-	the final tensors then either outputs the result or export it as a serial.
-	It also allows construction of the dataset with different point sizes.
-	----------------------------------------------------------------------------
-	For DeepPhase:
-	???
-	???
-	???
+	reflection points as possible this function is used to overcome this
+	limitation by randomly sampling max_size number of points from each example,
+	vectorise these points, normalise/standerdises them, construct the final
+	tensors then output the resulting tensors
 	'''
 	I = np.array([])
 	L = np.array([])
@@ -192,8 +188,7 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000',
 			T = [float(i) for i in T]
 			# 3. Random sampling of points
 			NC = [(x,y,z,r,e,p) for x,y,z,r,e,p in zip(
-													T[0::6],T[1::6],T[2::6],
-													T[3::6],T[4::6],T[5::6])]
+			T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
 			T = [random.choice(NC) for x in range(max_size)]
 			assert len(T) == max_size, 'Max number of points incorrect'
 			T = [i for sub in T for i in sub]
@@ -214,8 +209,8 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000',
 	Z   = np.array(Z)
 	R   = np.array(R)
 	E   = np.array(E)
-	E   = np.array(P)
-	if Type == 'class' or Type == 'Class':
+	P   = np.array(P)
+	if Type == 'deepclass' or Type == 'DeepClass':
 		# 6. One-Hot encoding and normalisation
 		''' Y labels '''
 		L[L=='Helix'] = 0
@@ -225,119 +220,93 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000',
 		categories = [sorted([x for x in range(1, 230+1)])]
 		S = S.reshape(-1, 1)
 		onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-		S = onehot_encoder.fit_transform(S)       #One-hot encode [Space Groups]
-		UCe = (UCe-np.mean(UCe))/np.std(UCe)      #Standardise [Unit Cell Edges]
-		UCa = (UCa-np.mean(UCa))/np.std(UCa)      #Standardise [Unit Cell Angle]
-		X = (X-np.mean(X))/np.std(X)              #Standardise [X Coordinates]
-		Y = (Y-np.mean(Y))/np.std(Y)              #Standardise [Y Coordinates]
-		Z = (Z-np.amin(Z))/(np.amax(Z)-np.amin(Z))#Normalise   [Z Coordinates]
-		R = (R-np.amin(R))/(np.amax(R)-np.amin(R))#Normalise   [Resolution]
-		E = (E-np.amin(E))/(np.amax(E)-np.amin(E))#Normalise   [E-value]
-		P = (P-np.amin(P))/(np.amax(P)-np.amin(P))#Normalise   [Phases]
+		S = onehot_encoder.fit_transform(S)  #One-hot encode [Space Groups]
+		UCe = (UCe-np.mean(UCe))/np.std(UCe) #Standardise    [Unit Cell Edges]
+		UCa = (UCa-np.mean(UCa))/np.std(UCa) #Standardise    [Unit Cell Angle]
+		X = (X-np.mean(X))/np.std(X)         #Standardise    [X Coordinates]
+		Y = (Y-np.mean(Y))/np.std(Y)         #Standardise    [Y Coordinates]
+		Z = (Z-np.mean(Z))/np.std(Z)         #Standardise    [Z Coordinates]
+		R = (R-np.mean(R))/np.std(R)         #Standardise    [Resolution]
+		E = (E-np.mean(E))/np.std(E)         #Standardise    [E-value]
 		# 7. Construct tensors
-		Space = S
-		UnitC = np.concatenate([UCe, UCa], axis=1)
-		if phase: Coord = np.array([X, Y, Z, R, E, P])
-		else: Coord = np.array([X, Y, Z, R, E])
-		Coord = np.swapaxes(Coord, 0, 2)
-		Coord = np.swapaxes(Coord, 0, 1)
-		S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
-		# 8. Shuffle examples
-		Coord, UnitC, Space, Class, I = shuffle(Coord, UnitC, Space, Class, I)
-		if export:
-			# 9. Serialise tensors
-			with h5py.File('Class.hdf5', 'w') as Yh:
-				dset = Yh.create_dataset('default', data=Class)
-			with h5py.File('Space.hdf5', 'w') as Sh:
-				dset = Sh.create_dataset('default', data=Space)
-			with h5py.File('UnitC.hdf5', 'w') as Uh:
-				dset = Uh.create_dataset('default', data=UnitC)
-			with h5py.File('Coord.hdf5', 'w') as Ch:
-				dset = Ch.create_dataset('default', data=Coord)
-			if Pids == True:
-				I = [n.encode('ascii', 'ignore') for n in I]
-				with h5py.File('IDs.hdf5', 'w') as ii:
-					dset = ii.create_dataset('default', data=I)
-			print('IDs     =', I.shape)
-			print('Space   =', Space.shape)
-			print('UnitC   =', UnitC.shape)
-			print('X Coord =', Coord.shape)
-			print('Y Class =', Class.shape)
-		else: return(Coord, UnitC, Space, y, I)
-	elif Type == 'phase' or Type == 'Phase':
-		S = np.array(S)
-		UCe = np.array(UCe)
-		UCa = np.array(UCa)
-		X = np.array(X)
-		Y = np.array(Y)
-		Z = np.array(Z)
-		R = np.array(R)
-		E = np.array(E)
-		P = np.array(P)
-		# 11. One-Hot encoding and normalisation
-		''' Y labels '''
-		Phase = (P-np.amin(P))/(np.amax(P)-np.amin(P))# Normalise [Phase]
-		''' X features '''
-		categories = [sorted([x for x in range(1, 230+1)])]
-		S = S.reshape(-1, 1)
-		onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-		S = onehot_encoder.fit_transform(S)       #One-hot encode [Space Groups]
-		UCe = (UCe-np.mean(UCe))/np.std(UCe)      #Standardise [Unit Cell Edges]
-		UCa = (UCa-np.mean(UCa))/np.std(UCa)      #Standardise [Unit Cell Angle]
-		X = (X-np.mean(X))/np.std(X)              #Standardise [X Coordinates]
-		Y = (Y-np.mean(Y))/np.std(Y)              #Standardise [Y Coordinates]
-		Z = (Z-np.amin(Z))/(np.amax(Z)-np.amin(Z))#Normalise   [Z Coordinates]
-		R = (R-np.amin(R))/(np.amax(R)-np.amin(R))#Normalise   [Resolution]
-		E = (E-np.amin(E))/(np.amax(E)-np.amin(E))#Normalise   [E-value]
-		# 12. Construct tensors - final features
 		Space = S
 		UnitC = np.concatenate([UCe, UCa], axis=1)
 		Coord = np.array([X, Y, Z, R, E])
 		Coord = np.swapaxes(Coord, 0, 2)
 		Coord = np.swapaxes(Coord, 0, 1)
-		S, UCe, UCa, X, Y, Z, R, E = [], [], [], [], [], [], [], []
-		# 13. Serialise tensors
-		if export:
-			with h5py.File('Phase.hdf5', 'w') as Ph:
-				dset = Ph.create_dataset('default', data=Phase)
-			with h5py.File('Space.hdf5', 'w') as Sh:
-				dset = Sh.create_dataset('default', data=Space)
-			with h5py.File('UnitC.hdf5', 'w') as Uh:
-				dset = Uh.create_dataset('default', data=UnitC)
-			with h5py.File('Coord.hdf5', 'w') as Ch:
-				dset = Ch.create_dataset('default', data=Coord)
-			if Pids == True:
-				I = [n.encode('ascii', 'ignore') for n in I]
-				with h5py.File('IDs.hdf5', 'w') as ii:
-					dset = ii.create_dataset('default', data=I)
-			print('IDs     =', I.shape)
-			print('Space   =', Space.shape)
-			print('UnitC   =', UnitC.shape)
-			print('X Coord =', Coord.shape)
-			print('Y Phase =', Phase.shape)
-		else: return(Coord, UnitC, Space, Phase, I)
+		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+		# 8. Shuffle examples
+		Coord, Class, UnitC, Space, I = shuffle(Coord, Class, UnitC, Space, I)
+		print('X Coord =', Coord.shape)
+		print('Y Class =', Class.shape)
+		print('Space   =', Space.shape)
+		print('UnitC   =', UnitC.shape)
+		print('IDs     =', I.shape)
+		return(Coord, Class, Space, UnitC, I)
+	elif Type == 'deepphase' or Type == 'DeepPhase':
+		# 6. One-Hot encoding and normalisation
+
+
+
+
+		''' Y labels '''
+		# divide 360 into 10 bins
+		# one-hot encode the bins
+		# final shape = (m, nx, 10)
+		#L[L=='Helix'] = 0
+		#L[L=='Sheet'] = 1
+		#Class = L.astype(np.int)
+		Phase = (P-np.amin(P))/(np.amax(P)-np.amin(P))
+
+
+
+
+
+		''' X features '''
+		categories = [sorted([x for x in range(1, 230+1)])]
+		S = S.reshape(-1, 1)
+		onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+		S = onehot_encoder.fit_transform(S)  #One-hot encode [Space Groups]
+		UCe = (UCe-np.mean(UCe))/np.std(UCe) #Standardise    [Unit Cell Edges]
+		UCa = (UCa-np.mean(UCa))/np.std(UCa) #Standardise    [Unit Cell Angle]
+		X = (X-np.mean(X))/np.std(X)         #Standardise    [X Coordinates]
+		Y = (Y-np.mean(Y))/np.std(Y)         #Standardise    [Y Coordinates]
+		Z = (Z-np.mean(Z))/np.std(Z)         #Standardise    [Z Coordinates]
+		R = (R-np.mean(R))/np.std(R)         #Standardise    [Resolution]
+		E = (E-np.mean(E))/np.std(E)         #Standardise    [E-value]
+		# 7. Construct tensors
+		Space = S
+		UnitC = np.concatenate([UCe, UCa], axis=1)
+		Coord = np.array([X, Y, Z, R, E])
+		Coord = np.swapaxes(Coord, 0, 2)
+		Coord = np.swapaxes(Coord, 0, 1)
+		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+		print('X Coord =', Coord.shape)
+		print('Y Phase =', Phase.shape)
+		print('Space   =', Space.shape)
+		print('UnitC   =', UnitC.shape)
+		print('IDs     =', I.shape)
+		return(Coord, Phase, Space, UnitC, I)
 
 def main():
 	if  args.Dataset:
 		D = Dataset()
 		D.run(IDs=sys.argv[2])
 	elif args.Vectorise:
-		Clas = sys.argv[2]
+		Type = sys.argv[2]
 		File = sys.argv[3]
 		size = int(sys.argv[4])
-		numb = int(sys.argv[5]) + 1
-		for samples in range(1, numb):
-			Vectorise(filename=File, max_size=size, Type=Clas)
-			if numb != 1:
-				print('-------Sample {}/{}-------\n'.format(samples+1, numb))
-				try:
-					os.rename('Class.hdf5', 'Class_{}.hdf5'.format(samples+1))
-				except:
-					os.rename('Phase.hdf5', 'Phase_{}.hdf5'.format(samples+1))
-				os.system('mv Space.hdf5 Space_{}.hdf5'.format(samples+1))
-				os.system('mv UnitC.hdf5 UnitC_{}.hdf5'.format(samples+1))
-				os.system('mv Coord.hdf5 Coord_{}.hdf5'.format(samples+1))
-				if os.path.exists('IDs.hdf5'):
-					os.system('mv IDs.hdf5 IDs_{}.hdf5'.format(samples+1))
+		X, Y, S, U, I = Vectorise(filename=File, max_size=size, Type=Type)
+	elif args.Serialise:
+		Type = sys.argv[2]
+		File = sys.argv[3]
+		size = int(sys.argv[4])
+		X, Y, S, U, I = Vectorise(filename=File, max_size=size, Type=Type)
+		I = [n.encode('ascii', 'ignore') for n in I]
+		with h5py.File('X.h5','w') as x:dset=x.create_dataset('default',data=X)
+		with h5py.File('Y.h5','w') as y:dset=y.create_dataset('default',data=Y)
+		#with h5py.File('S.h5','w') as s:dset=s.create_dataset('default',data=S)
+		#with h5py.File('U.h5','w') as u:dset=u.create_dataset('default',data=U)
+		#with h5py.File('I.h5','w') as i:dset=i.create_dataset('default',data=I)
 
 if __name__ == '__main__': main()
