@@ -245,23 +245,11 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		return(Coord, Class, Space, UnitC, I)
 	elif Type == 'deepphase' or Type == 'DeepPhase':
 		# 6. One-Hot encoding and normalisation
-
-
-
-
 		''' Y labels '''
-		# divide 360 into 10 bins
-		# one-hot encode the bins
-		# final shape = (m, nx, 10)
-		#L[L=='Helix'] = 0
-		#L[L=='Sheet'] = 1
-		#Class = L.astype(np.int)
-		Phase = (P-np.amin(P))/(np.amax(P)-np.amin(P))
-
-
-
-
-
+		MIN, MAX, BIN = -4, 4, 8 # 8 bins for range -4 to 4
+		bins = np.array([MIN+i*((MAX-MIN)/BIN) for i in range(BIN+1)][1:-1])
+		P = np.digitize(P, bins)
+		Phase = np.eye(BIN)[P] # One-hot encode the bins
 		''' X features '''
 		categories = [sorted([x for x in range(1, 230+1)])]
 		S = S.reshape(-1, 1)
