@@ -39,22 +39,27 @@ DeepPhase: This project is an attempt to calculate the phase of each reflection 
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
-4. Vectorise and serialise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise, standerdise, or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
+4. Vectorise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise, standerdise, or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
 
-To cover more points they will be randomly samples, each file will contain randomly samples NUMBER_OF_POINTS, to cover more points we can repeat the sampling for NUMBER_OF_SAMPLES. Each tensor will end up in a separate file
+For **DeepClass** (protein classification dataset):
+`python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepClass FILENAME.csv 1024`
 
-For DeepClass (protein classification dataset):
-`python crystal.py --Vectorise class FILENAME.csv NUMBER_OF_POINTS NUMBER_OF_SAMPLES class` or `python crystal.py -V class FILENAME.csv 15000 3`
+For **DeepPhase** (reflection point phase prediction dataset):
+`python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepPhase FILENAME.csv 1024`
 
-For DeepPhase (reflection point phase prediction dataset):
-`python crystal.py --Vectorise phase FILENAME.csv NUMBER_OF_POINTS NUMBER_OF_SAMPLES` or `python crystal.py -V phase FILENAME.csv 15000 3`
+If you want to serialise the vectorised dataset then replace --Vectorise (-V) with --Serialise (-S).
 
-### Run Training:
 
-TRAINING CODE AND COMMAND
 
-COMPILED DATASET DOWNLOAD LINK
 
-TRAINED WEIGHTS DOWNLOAD LINK
 
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
+
+### Run Training:
+5. To train the neural network on the dataset use the following command:
+`python network.py`
+
+
+* TRAINING CODE AND COMMAND
+* COMPILED DATASET DOWNLOAD LINK
+* TRAINED WEIGHTS DOWNLOAD LINK
