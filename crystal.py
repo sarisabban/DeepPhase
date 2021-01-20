@@ -269,6 +269,7 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		Coord = np.swapaxes(Coord, 0, 2)
 		Coord = np.swapaxes(Coord, 0, 1)
 		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+		Coord, Phase, UnitC, Space, I = shuffle(Coord, Phase, UnitC, Space, I)
 		print('X Coord =', Coord.shape)
 		print('Y Phase =', Phase.shape)
 		print('Space   =', Space.shape)
