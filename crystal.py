@@ -14,6 +14,8 @@ parser = argparse.ArgumentParser(description='Compiling and vectorising X-ray cr
 parser.add_argument('-D', '--Dataset'  , nargs='+', help='Compile a datset of protein reflections points, include a text file of PDB IDs')
 parser.add_argument('-V', '--Vectorise', nargs='+', help='Vectorise the datset only')
 parser.add_argument('-S', '--Serialise', nargs='+', help='Vectorise and serialise the datset')
+parser.add_argument('-A', '--Augment',   nargs='+', help='Augment a .pdb file and generate reflection data')
+
 args = parser.parse_args()
 
 class Dataset():
@@ -277,6 +279,69 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		print('IDs     =', I.shape)
 		return(Coord, Phase, Space, UnitC, I)
 
+def augment(in_name):
+	''' Augment a .pdb file '''
+	import pymol
+	pymol.cmd.load(in_name)
+	name = in_name[:-4]
+	x  = random.randint(1, 10)
+	y  = random.randint(1, 10)
+	z  = random.randint(1, 10)
+	xr = random.randint(1, 360)
+	yr = random.randint(1, 360)
+	zr = random.randint(1, 360)
+	pymol.cmd.translate([x, y, z], name)
+	pymol.cmd.rotate([1, 0, 0], xr, name)
+	pymol.cmd.rotate([0, 1, 0], yr, name)
+	pymol.cmd.rotate([0, 0, 1], zr, name)
+	pymol.cmd.save('temp.pdb', name)
+	pymol.cmd.rotate([0, 0, 1], -zr, name)
+	pymol.cmd.rotate([0, 1, 0], -yr, name)
+	pymol.cmd.rotate([1, 0, 0], -xr, name)
+	pymol.cmd.translate([-x, -y, -z], name)
+	with open(in_name, 'r') as f:
+		line1 = f.readline()
+		line2 = f.readline()
+	with open('temp.pdb', 'r') as t:
+		aug = t.readlines()
+	augmented = line1+line2
+	for i in aug: augmented += i
+	os.remove('temp.pdb')
+	print('X: {:3} Y: {:3} Z: {:3} Xr: {:3} Yr: {:3} Zr: {:3}'\
+	.format(x, y, z, xr, yr, zr))
+	return(augmented)
+
+def generate(pdb='x', export_mtz=False):
+	''' Generate reflection data from a .pdb file '''
+	import iotbx.pdb
+	xrs = iotbx.pdb.input(source_info=None,lines = pdb).xray_structure_simple()
+	a = xrs.structure_factors(d_min=2.5).f_calc()
+	C = a.unit_cell()
+	S = str(a.customized_copy()).split()[-1].split(')')[0]
+	P1 = a.expand_to_p1().indices()
+	R = [round(x, 5) for x in list(C.d(P1))]
+	P = [round(x, 5) for x in list(a.phases().data())]
+	amp = a.amplitudes()
+	amp.setup_binner(auto_binning=True)
+	amp.binner()
+	e_val = amp.quasi_normalize_structure_factors()
+	E = list(e_val.expand_to_p1().f_sq_as_f().data())
+	E = [round(x, 5) for x in E]
+	polar_coordinates = list(C.reciprocal_space_vector(P1))
+	X = []
+	Y = []
+	Z = []
+	for x, y, z in polar_coordinates:
+		X.append(round(x, 5))
+		Y.append(round(y, 5))
+		Z.append(round(z, 5))
+	''' Export as .mtz file '''
+	if export_mtz == True:
+		mtz_dataset = a.as_mtz_dataset(column_root_label='FC')
+		mtz_object = mtz_dataset.mtz_object()
+		mtz_object.write(file_name='{}.mtz'.format(filename[:-4]))
+	return(S, C, X, Y, Z, R, E, P)
+
 def main():
 	if  args.Dataset:
 		D = Dataset()
@@ -297,5 +362,11 @@ def main():
 		#with h5py.File('S.h5','w') as s:dset=s.create_dataset('default',data=S)
 		#with h5py.File('U.h5','w') as u:dset=u.create_dataset('default',data=U)
 		#with h5py.File('I.h5','w') as i:dset=i.create_dataset('default',data=I)
+	elif args.Augment:
+		filename = os.argv[2]
+		n = os.argv[3]
+		for i in range(1, n+1):
+			pdb_str = augment(filename)
+			S, C, X, Y, Z, R, E, P = generate(pdb_str)
 
 if __name__ == '__main__': main()
