@@ -1,3 +1,8 @@
+import os 
+import sys
+import urllib.request
+import subprocess
+
 def setup():
 	'''
 	Installs required dependencies for this script to work
@@ -27,4 +32,5 @@ def setup():
 	os.system('conda activate Cenv')
 	os.system('conda install -c schrodinger pymol -y')
 	os.system('conda install tqdm biopython h5py pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1 -y')
+
 setup()
