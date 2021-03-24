@@ -1,7 +1,7 @@
 import os 
 import sys
-import urllib.request
 import subprocess
+import urllib.request
 
 def setup():
 	'''
