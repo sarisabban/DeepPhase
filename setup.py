@@ -25,6 +25,6 @@ def setup():
 	os.chdir('./mc3/bin/')
 	os.system('./conda init bash')
 	os.system('conda activate Cenv')
-	os.system('conda install tqdm biopython h5py pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1')
-
+	os.system('conda install tqdm biopython h5py pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1 -y')
+	os.system('conda install -c schrodinger pymol==2.4.1 -y')
 setup()
