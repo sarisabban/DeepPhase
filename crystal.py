@@ -108,8 +108,6 @@ class Dataset():
 					try:
 						Mfilename = item + '.mtz'
 						Pfilename = item + '.pdb'
-						Mfilename = './X/' + item + '.mtz'
-						Pfilename = './X/' + item + '.pdb'
 						S, C, X, Y, Z, R, E, P = self.features(Mfilename)
 						H_frac, S_frac, L_frac = self.labels(Pfilename)
 						if   H_frac>=0.50 and S_frac==0.00 and L_frac<=0.50:
