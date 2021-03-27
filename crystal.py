@@ -317,7 +317,7 @@ class Synthetic():
 		import iotbx.pdb
 		xrs = iotbx.pdb.input(source_info=None, lines=pdbstr)\
 		.xray_structure_simple()
-		a = xrs.structure_factors(d_min=35.0).f_calc()
+		a = xrs.structure_factors(d_min=2.5).f_calc()
 		UC = a.unit_cell()
 		C = str(UC)[1:-1]
 		C = tuple(map(str, C.split(', ')))
