@@ -278,15 +278,15 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 
 class Synthetic():
 	def __init__(self, filename='alpha.pdb', Label='Helix', d=2.5, n=3):
+		import pymol
 		self.filename = filename
 		self.Label = Label
 		self.n = n
 		self.d = d
-	def augment(self, in_name):
+		pymol.cmd.load(self.filename)
+	def augment(self):
 		''' Augment a .pdb file '''
-		import pymol
-		pymol.cmd.load(in_name)
-		name = in_name[:-4]
+		name = self.filename[:-4]
 		x  = random.randint(1, 10)
 		y  = random.randint(1, 10)
 		z  = random.randint(1, 10)
@@ -302,7 +302,7 @@ class Synthetic():
 		pymol.cmd.rotate([0, 1, 0], -yr, name)
 		pymol.cmd.rotate([1, 0, 0], -xr, name)
 		pymol.cmd.translate([-x, -y, -z], name)
-		with open(in_name, 'r') as f:
+		with open(self.filename, 'r') as f:
 			line1 = f.readline()
 			line2 = f.readline()
 		with open('temp.pdb', 'r') as t:
@@ -345,14 +345,13 @@ class Synthetic():
 			mtz_dataset = a.as_mtz_dataset(column_root_label='FC')
 			mtz_object = mtz_dataset.mtz_object()
 			mtz_object.write(file_name='{}.mtz'.format(filename[:-4]))
-		print(len(X))
 		return(S, C, X, Y, Z, R, E, P)
 	def generate(self):
 		''' Generate synthetic reflection data for n orientations of a .pdb '''
 		size = []
 		with open('temp', 'w') as f:
 			for i in range(1, self.n+1):
-				pdb_str = self.augment(self.filename)
+				pdb_str = self.augment()
 				S, C, X, Y, Z, R, E, P = self.reflections(pdb_str)
 				size.append(len(X))
 				exp = [str(i)]
@@ -409,7 +408,7 @@ def main():
 		#with h5py.File('U.h5','w') as u:dset=u.create_dataset('default',data=U)
 		#with h5py.File('I.h5','w') as i:dset=i.create_dataset('default',data=I)
 	elif args.Augment:
-		S = Synthetic(filename=sys.argv[2], Label=sys.argv[3], n=sys.argv[4])
+		S = Synthetic(filename=sys.argv[2], Label=sys.argv[3], d=sys.argv[5], n=sys.argv[5])
 		S.generate()
 
 if __name__ == '__main__': main()
