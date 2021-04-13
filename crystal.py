@@ -277,10 +277,11 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		return(Coord, Phase, Space, UnitC, I)
 
 class Synthetic():
-	def __init__(self, filename='alpha.pdb', Label='Helix', n=3):
+	def __init__(self, filename='alpha.pdb', Label='Helix', d=2.5, n=3):
 		self.filename = filename
 		self.Label = Label
 		self.n = n
+		self.d = d
 	def augment(self, in_name):
 		''' Augment a .pdb file '''
 		import pymol
@@ -317,7 +318,7 @@ class Synthetic():
 		import iotbx.pdb
 		xrs = iotbx.pdb.input(source_info=None, lines=pdbstr)\
 		.xray_structure_simple()
-		a = xrs.structure_factors(d_min=2.5).f_calc()
+		a = xrs.structure_factors(d_min=self.d).f_calc()
 		UC = a.unit_cell()
 		C = str(UC)[1:-1]
 		C = tuple(map(str, C.split(', ')))
@@ -344,6 +345,7 @@ class Synthetic():
 			mtz_dataset = a.as_mtz_dataset(column_root_label='FC')
 			mtz_object = mtz_dataset.mtz_object()
 			mtz_object.write(file_name='{}.mtz'.format(filename[:-4]))
+		print(len(X))
 		return(S, C, X, Y, Z, R, E, P)
 	def generate(self):
 		''' Generate synthetic reflection data for n orientations of a .pdb '''
