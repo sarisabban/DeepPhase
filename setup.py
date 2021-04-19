@@ -51,3 +51,11 @@ conda install -c schrodinger pymol -y
 conda install -c conda-forge cctbx tqdm keras tensorflow -y
 conda install -c anaconda numpy scipy biopython pandas scikit-learn h5py -y
 """
+
+"""
+# IBEX SETUP
+conda create -n POINT
+conda activate POINT
+conda install -c anaconda numpy scipy scikit-learn h5py keras-gpu tensorflow-gpu -y
+conda deactivate
+"""
