@@ -277,12 +277,16 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		return(Coord, Phase, Space, UnitC, I)
 
 class Synthetic():
-	def __init__(self, filename='alpha.pdb', Label='Helix', d=2.5, n=3):
+	def __init__(self, filename='Helix.pdb', Label='Helix', d=2.5, n=3,
+				UCe=True, UCa=True, S=True):
 		import pymol
 		self.filename = filename
 		self.Label = Label
 		self.n = n
 		self.d = d
+		self.UCe = UCe
+		self.UCa = UCa
+		self.S = S
 		pymol.cmd.load(self.filename)
 	def augment(self):
 		''' Augment a .pdb file '''
@@ -303,15 +307,37 @@ class Synthetic():
 		pymol.cmd.rotate([1, 0, 0], -xr, name)
 		pymol.cmd.translate([-x, -y, -z], name)
 		with open(self.filename, 'r') as f:
-			line1 = f.readline()
-			line2 = f.readline()
+			header = f.readline()
+			crystal = f.readline()
+			L = crystal.strip().split()
+			ID   = L[0]
+			UCeA = float(L[1])
+			UCeB = float(L[2])
+			UCeC = float(L[3])
+			UCaAlpha = float(L[4])
+			UCaBeta  = float(L[5])
+			UCaGamma = float(L[6])
+			Space    = ' '.join(L[7:])
+			Z        = int(8)
+			if self.UCe == True:
+				UCeA = UCeA+random.randint(-5,5)#float(random.randint(1 , 214))##############
+				UCeB = UCeB+random.randint(-5,5)#float(random.randint(22, 437))##############
+				UCeC = UCeC+random.randint(-5,5)#float(random.randint(22, 437))##############
+			if self.UCa == True:
+				UCaAlpha = float(random.choice([90, 110]))
+				UCaBeta  = float(random.choice([90, 105, 110]))
+				UCaGamma = float(random.choice([90, 120]))
+			if self.S == True:
+				SP = [	'P 21 21 21', 'C 2 2 21', 'P 21 21 2',
+						'P 1'       , 'P 1 21 1', 'C 1 2 1']
+				Space = random.choice(SP)########################################################
+			crystal = '{:6} {:>8} {:>8} {:>8} {:>6} {:>6} {:>6} {:>10} {:>4}'\
+			.format(ID, UCeA, UCeB, UCeC, UCaAlpha, UCaBeta, UCaGamma, Space, Z)
 		with open('temp.pdb', 'r') as t:
 			aug = t.readlines()
-		augmented = line1+line2
+		augmented = header+crystal
 		for i in aug: augmented += i
 		os.remove('temp.pdb')
-		print('X: {:3} Y: {:3} Z: {:3} Xr: {:3} Yr: {:3} Zr: {:3}'\
-		.format(x, y, z, xr, yr, zr))
 		return(augmented)
 	def reflections(self, pdbstr='x', export_mtz=False):
 		''' Generate reflection data from a .pdb file '''
@@ -349,7 +375,7 @@ class Synthetic():
 	def generate(self):
 		''' Generate synthetic reflection data for n orientations of a .pdb '''
 		size = []
-		with open('temp', 'w') as f:
+		with open('temp', 'a') as f:
 			for i in range(1, self.n+1):
 				pdb_str = self.augment()
 				S, C, X, Y, Z, R, E, P = self.reflections(pdb_str)
@@ -370,6 +396,9 @@ class Synthetic():
 					exp.append(str(r))
 					exp.append(str(e))
 					exp.append(str(p))
+				if not 10000 < len(X) < 15000: continue################################
+				print('[+] {} - Number of points generated {:,}'\
+				.format(self.Label, len(X)))
 				line = ','.join(exp)
 				f.write(line+'\n')
 		h1 = 'Augment,Class,Space_Group,'
@@ -382,7 +411,7 @@ class Synthetic():
 		head = ''.join(head)
 		with open('{}.csv'.format(self.Label), 'w') as F:
 			with open('temp', 'r') as f:
-				F.write(head+'\n')
+#				F.write(head+'\n')
 				for line in f:
 					F.write(line)
 		os.remove('temp')
