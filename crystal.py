@@ -15,7 +15,7 @@ parser.add_argument('-D', '--Dataset'  , nargs='+', help='Compile a datset of pr
 parser.add_argument('-V', '--Vectorise', nargs='+', help='Vectorise the datset only')
 parser.add_argument('-S', '--Serialise', nargs='+', help='Vectorise and serialise the datset')
 parser.add_argument('-A', '--Augment',   nargs='+', help='Augment a .pdb file to different orientations and generate reflection data')
-parser.add_argument('-v', '--Voxelise',  nargs='+', help='Voxelise the points of in a .csv file')
+parser.add_argument('-X', '--Voxelise',  nargs='+', help='Voxelise the points of in a .csv file')
 args = parser.parse_args()
 
 class Dataset():
@@ -417,9 +417,6 @@ class Synthetic():
 					F.write(line)
 		os.remove('temp')
 
-
-
-
 def Voxel(filename='test.csv', size=0.009, show=False):
 	''' Reducing the number of reflection points by voxelisation '''
 	with open(filename) as f:
@@ -452,9 +449,9 @@ def Voxel(filename='test.csv', size=0.009, show=False):
 				.format(I, L, S, UCe, UCa)
 				F.write(start)
 				for v in voxel_grid.get_voxels():
-					x = v.grid_index[0]# Get center of voxel by * by voxel size for each x y z point onlypoint
-					y = v.grid_index[1]# Get center of voxel by * by voxel size for each x y z point onlypoint
-					z = v.grid_index[2]# Get center of voxel by * by voxel size for each x y z point onlypoint
+					x = v.grid_index[0]*size
+					y = v.grid_index[1]*size
+					z = v.grid_index[2]*size
 					r = v.color[0]
 					e = v.color[1]
 					p = v.color[2]
@@ -462,13 +459,24 @@ def Voxel(filename='test.csv', size=0.009, show=False):
 					F.write(line)
 				F.write('\n')
 			os.remove('example.xyz')
-
 			if show == True:
 				o3d.visualization.draw_geometries([xyz])
 				o3d.visualization.draw_geometries([voxel_grid])
-				#### show orignal point cloud super imposed with voxelised point cloud voxel centers
-
-
+				X, Y, Z, R, E, P = [], [], [], [], [], []
+				for v in voxel_grid.get_voxels():
+					x = X.append(v.grid_index[0]*size)
+					y = Y.append(v.grid_index[1]*size)
+					z = Z.append(v.grid_index[2]*size)
+					r = R.append(v.color[0])
+					e = E.append(v.color[1])
+					p = P.append(v.color[2])
+				with open('Centers.xyz', 'w') as F:
+					for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
+						line = '{} {} {} {} {} {}\n'.format(x, y, z, r, e, p)
+						F.write(line)
+				xyz_centers = o3d.io.read_point_cloud('Centers.xyz', 'xyzrgb')
+				o3d.visualization.draw_geometries([xyz_centers])
+				os.remove('Centers.xyz')
 
 def main():
 	if  args.Dataset:
@@ -493,7 +501,6 @@ def main():
 	elif args.Augment:
 		S = Synthetic(filename=sys.argv[2], Label=sys.argv[3], d=sys.argv[5], n=sys.argv[6])
 		S.generate()
-
 	elif args.Voxelise:
 		Voxel(filename=sys.argv[2], size=sys.argv[3])
 
