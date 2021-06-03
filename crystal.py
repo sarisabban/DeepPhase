@@ -186,20 +186,34 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 			# 2. Isolate points
 			T = line[9:]
 			T = [float(i) for i in T]
-			# 3. Random sampling of points
-			NC = [(x,y,z,r,e,p) for x,y,z,r,e,p in zip(
-			T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
-			T = [random.choice(NC) for x in range(max_size)]
+			# 3. Collect each point values
+			NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
+				in zip(T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
+################################################################################
+			# 4. Sort and choose according to top E-values
+			T = sorted(NC, reverse=True, key=lambda c:c[4])
+			T = T[:max_size]
+
+			# 4. Sort and choose according to top R-values
+#			T = sorted(NC, reverse=True, key=lambda c:c[3])
+#			T = T[:max_size]
+
+#			# 4. Random sampling of points
+#			T = [random.choice(NC) for x in range(max_size)]
+
+#			# 4. Sample points at regular intervals
+#			T = NC[::len(NC)//max_size][:max_size]
+################################################################################
 			assert len(T) == max_size, 'Max number of points incorrect'
 			T = [i for sub in T for i in sub]
-			# 4. Export points
+			# 5. Export points
 			X.append(np.array(T[0::6], dtype=fp))
 			Y.append(np.array(T[1::6], dtype=fp))
 			Z.append(np.array(T[2::6], dtype=fp))
 			R.append(np.array(T[3::6], dtype=fp))
 			E.append(np.array(T[4::6], dtype=fp))
 			P.append(np.array(T[5::6], dtype=fp))
-	# 5. Build arrays
+	# 6. Build arrays
 	I   = np.array(I)
 	S   = np.array(S)
 	UCe = np.array(UCe)
@@ -211,7 +225,7 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 	E   = np.array(E)
 	P   = np.array(P)
 	if Type == 'deepclass' or Type == 'DeepClass':
-		# 6. One-Hot encoding and normalisation
+		# 7. One-Hot encoding and normalisation
 		''' Y labels '''
 		L[L=='Helix'] = 0
 		L[L=='Sheet'] = 1
@@ -228,23 +242,23 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		Z = (Z-np.mean(Z))/np.std(Z)         #Standardise    [Z Coordinates]
 		R = (R-np.mean(R))/np.std(R)         #Standardise    [Resolution]
 		E = (E-np.mean(E))/np.std(E)         #Standardise    [E-value]
-		# 7. Construct tensors
+		# 8. Construct tensors
 		Space = S
 		UnitC = np.concatenate([UCe, UCa], axis=1)
 		Coord = np.array([X, Y, Z, R, E])
 		Coord = np.swapaxes(Coord, 0, 2)
 		Coord = np.swapaxes(Coord, 0, 1)
 		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-		# 8. Shuffle examples
+		# 9. Shuffle examples
 		Coord, Class, UnitC, Space, I = shuffle(Coord, Class, UnitC, Space, I)
-		print('X Coord =', Coord.shape)
-		print('Y Class =', Class.shape)
-		print('Space   =', Space.shape)
-		print('UnitC   =', UnitC.shape)
-		print('IDs     =', I.shape)
+		print('IDs      =', I.shape)
+		print('Space    =', Space.shape)
+		print('UnitCell =', UnitC.shape)
+		print('X Coord  =', Coord.shape)
+		print('Y Class  =', Class.shape)
 		return(Coord, Class, Space, UnitC, I)
 	elif Type == 'deepphase' or Type == 'DeepPhase':
-		# 6. One-Hot encoding and normalisation
+		# 7. One-Hot encoding and normalisation
 		''' Y labels '''
 		MIN, MAX, BIN = -4, 4, 8 # 8 bins for range -4 to 4
 		bins = np.array([MIN+i*((MAX-MIN)/BIN) for i in range(BIN+1)][1:-1])
@@ -262,19 +276,20 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		Z = (Z-np.mean(Z))/np.std(Z)         #Standardise    [Z Coordinates]
 		R = (R-np.mean(R))/np.std(R)         #Standardise    [Resolution]
 		E = (E-np.mean(E))/np.std(E)         #Standardise    [E-value]
-		# 7. Construct tensors
+		# 8. Construct tensors
 		Space = S
 		UnitC = np.concatenate([UCe, UCa], axis=1)
 		Coord = np.array([X, Y, Z, R, E])
 		Coord = np.swapaxes(Coord, 0, 2)
 		Coord = np.swapaxes(Coord, 0, 1)
 		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+		# 9. Shuffle examples
 		Coord, Phase, UnitC, Space, I = shuffle(Coord, Phase, UnitC, Space, I)
-		print('X Coord =', Coord.shape)
-		print('Y Phase =', Phase.shape)
-		print('Space   =', Space.shape)
-		print('UnitC   =', UnitC.shape)
-		print('IDs     =', I.shape)
+		print('IDs      =', I.shape)
+		print('Space    =', Space.shape)
+		print('UnitCell =', UnitC.shape)
+		print('X Coord  =', Coord.shape)
+		print('Y Phase  =', Phase.shape)
 		return(Coord, Phase, Space, UnitC, I)
 
 def Voxel(filename='test.csv', size=0.009, show=False):
