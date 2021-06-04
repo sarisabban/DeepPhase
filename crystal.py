@@ -397,9 +397,9 @@ class Synthetic():
 			Space    = ' '.join(L[7:])
 			Z        = int(8)
 			if self.UCe == True:
-				UCeA = UCeA+random.randint(-5,5)#float(random.randint(1 , 214))##############
-				UCeB = UCeB+random.randint(-5,5)#float(random.randint(22, 437))##############
-				UCeC = UCeC+random.randint(-5,5)#float(random.randint(22, 437))##############
+				UCeA = float(random.randint(1, 250))
+				UCeB = float(random.randint(1, 450))
+				UCeC = float(random.randint(1, 450))
 			if self.UCa == True:
 				UCaAlpha = float(random.choice([90, 110]))
 				UCaBeta  = float(random.choice([90, 105, 110]))
@@ -473,7 +473,6 @@ class Synthetic():
 					exp.append(str(r))
 					exp.append(str(e))
 					exp.append(str(p))
-				if not 10000 < len(X) < 15000: continue################################
 				print('[+] {} - Number of points generated {:,}'\
 				.format(self.Label, len(X)))
 				line = ','.join(exp)
@@ -488,7 +487,7 @@ class Synthetic():
 		head = ''.join(head)
 		with open('{}.csv'.format(self.Label), 'w') as F:
 			with open('temp', 'r') as f:
-#				F.write(head+'\n')
+				F.write(head+'\n')
 				for line in f:
 					F.write(line)
 		os.remove('temp')
