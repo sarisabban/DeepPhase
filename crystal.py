@@ -292,12 +292,16 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 		print('Y Phase  =', Phase.shape)
 		return(Coord, Phase, Space, UnitC, I)
 
-def Voxel(filename='test.csv', size=0.009, show=False):
+def Voxel(filename='Gen.csv', show=False):
 	''' Reducing the number of reflection points by voxelisation '''
 	with open(filename) as f:
 		next(f)
 		for line in f:
 			line = line.strip().split(',')
+			if           len(line[9:])/6 <= 1000:    size=0.001; fn='small.csv'
+			if 1000    < len(line[9:])/6 <= 10000:   size=0.005; fn='medium.csv'
+			if 10000   < len(line[9:])/6 <= 1000000: size=0.008; fn='large.csv'
+			if 1000000 < len(line[9:])/6:            size=0.010; fn='xlarge.csv'
 			I = line[0]
 			L = line[1]
 			S = line[2]
@@ -317,9 +321,9 @@ def Voxel(filename='test.csv', size=0.009, show=False):
 					F.write(line)
 			xyz = o3d.io.read_point_cloud('example.xyz', 'xyzrgb')
 			voxel_grid=o3d.geometry.VoxelGrid.create_from_point_cloud(xyz, size)
-			print('Point Cloud {:<10,}   Voxelised {:<10,}'\
-			.format(len(xyz.points), len(voxel_grid.get_voxels())))
-			with open('{}_vox.csv'.format(filename[:-4]), 'a') as F:
+			print('Point Cloud {:<10,}   Voxelised {:<10,}   Save {}'\
+			.format(len(xyz.points), len(voxel_grid.get_voxels()), fn))
+			with open(fn, 'a') as F:
 				start = '{},{},{},{},{}'\
 				.format(I, L, S, UCe, UCa)
 				F.write(start)
