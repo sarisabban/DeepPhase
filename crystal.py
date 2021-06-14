@@ -189,21 +189,8 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 			# 3. Collect each point values
 			NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
 				in zip(T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
-################################################################################
-			# 4. Sort and choose according to top E-values
-			T = sorted(NC, reverse=True, key=lambda c:c[4])
-			T = T[:max_size]
-
-			# 4. Sort and choose according to top R-values
-#			T = sorted(NC, reverse=True, key=lambda c:c[3])
-#			T = T[:max_size]
-
-#			# 4. Random sampling of points
-#			T = [random.choice(NC) for x in range(max_size)]
-
 #			# 4. Sample points at regular intervals
-#			T = NC[::len(NC)//max_size][:max_size]
-################################################################################
+			T = NC[::len(NC)//max_size][:max_size]
 			assert len(T) == max_size, 'Max number of points incorrect'
 			T = [i for sub in T for i in sub]
 			# 5. Export points
@@ -298,10 +285,6 @@ def Voxel(filename='Gen.csv', show=False):
 		next(f)
 		for line in f:
 			line = line.strip().split(',')
-			if           len(line[9:])/6 <= 1000:    size=0.001; fn='small.csv'
-			if 1000    < len(line[9:])/6 <= 10000:   size=0.005; fn='medium.csv'
-			if 10000   < len(line[9:])/6 <= 1000000: size=0.008; fn='large.csv'
-			if 1000000 < len(line[9:])/6:            size=0.010; fn='xlarge.csv'
 			I = line[0]
 			L = line[1]
 			S = line[2]
@@ -309,36 +292,53 @@ def Voxel(filename='Gen.csv', show=False):
 			UCa = ','.join(line[6:9])
 			T = line[9:]
 			T = [float(i) for i in T]
+			if       len(T)/6 <= 1e3: size=0.001; fn='1k-.csv'     ; vox=False
+			if 1e3 < len(T)/6 <= 1e4: size=0.005; fn='1k-10k.csv'  ; vox=False
+			if 1e4 < len(T)/6 <= 5e5: size=0.005; fn='10k-500k.csv'; vox=False
+			if 5e5 < len(T)/6 <= 1e6: size=0.008; fn='500k-1M.csv' ; vox=True
+			if 1e6 < len(T)/6:        size=0.010; fn='1M+.csv'     ; vox=True
 			X = T[0::6]
 			Y = T[1::6]
 			Z = T[2::6]
 			R = T[3::6]
 			E = T[4::6]
 			P = T[5::6]
-			with open('example.xyz', 'w') as F:
-				for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
-					line = '{} {} {} {} {} {}\n'.format(x, y, z, r, e, p)
-					F.write(line)
-			xyz = o3d.io.read_point_cloud('example.xyz', 'xyzrgb')
-			voxel_grid=o3d.geometry.VoxelGrid.create_from_point_cloud(xyz, size)
-			print('Point Cloud {:<10,}   Voxelised {:<10,}   Save {}'\
-			.format(len(xyz.points), len(voxel_grid.get_voxels()), fn))
-			with open(fn, 'a') as F:
-				start = '{},{},{},{},{}'\
-				.format(I, L, S, UCe, UCa)
-				F.write(start)
-				for v in voxel_grid.get_voxels():
-					x = v.grid_index[0]*size
-					y = v.grid_index[1]*size
-					z = v.grid_index[2]*size
-					r = v.color[0]
-					e = v.color[1]
-					p = v.color[2]
-					line = ',{},{},{},{},{},{}'.format(x, y, z, r, e, p)
-					F.write(line)
-				F.write('\n')
-			os.remove('example.xyz')
-			if show == True:
+			if vox == True:
+				with open('example.xyz', 'w') as F:
+					for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
+						line = '{} {} {} {} {} {}\n'.format(x, y, z, r, e, p)
+						F.write(line)
+				xyz = o3d.io.read_point_cloud('example.xyz', 'xyzrgb')
+				voxel_grid = o3d.geometry.VoxelGrid.\
+				create_from_point_cloud(xyz, size)
+				with open(fn, 'a') as F:
+					start = '{},{},{},{},{}'\
+					.format(I, L, S, UCe, UCa)
+					F.write(start)
+					for v in voxel_grid.get_voxels():
+						x = v.grid_index[0]*size
+						y = v.grid_index[1]*size
+						z = v.grid_index[2]*size
+						r = v.color[0]
+						e = v.color[1]
+						p = v.color[2]
+						line = ',{},{},{},{},{},{}'.format(x, y, z, r, e, p)
+						F.write(line)
+					F.write('\n')
+				os.remove('example.xyz')
+				print('Point Cloud {:<10,}   Voxelised {:<10,}   Save {}'\
+				.format(len(xyz.points), len(voxel_grid.get_voxels()), fn))
+			elif vox == False:
+				with open(fn, 'a') as F:
+					start = '{},{},{},{},{}'.format(I, L, S, UCe, UCa)
+					F.write(start)
+					for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
+						line = ',{},{},{},{},{},{}'.format(x, y, z, r, e, p)
+						F.write(line)
+					F.write('\n')
+				print('Point Cloud {:<10,}   Not Voxelised       Save {}'\
+				.format(len(X), fn))
+			if show == True and vox == True:
 				o3d.visualization.draw_geometries([xyz])
 				o3d.visualization.draw_geometries([voxel_grid])
 				X, Y, Z, R, E, P = [], [], [], [], [], []
@@ -411,7 +411,7 @@ class Synthetic():
 			if self.S == True:
 				SP = [	'P 21 21 21', 'C 2 2 21', 'P 21 21 2',
 						'P 1'       , 'P 1 21 1', 'C 1 2 1']
-				Space = random.choice(SP)########################################################
+				Space = random.choice(SP)######## ERROR IN SPACE GROUP #########
 			crystal = '{:6} {:>8} {:>8} {:>8} {:>6} {:>6} {:>6} {:>10} {:>4}'\
 			.format(ID, UCeA, UCeB, UCeC, UCaAlpha, UCaBeta, UCaGamma, Space, Z)
 		with open('temp.pdb', 'r') as t:
@@ -517,7 +517,11 @@ def main():
 		#with h5py.File('U.h5','w') as u:dset=u.create_dataset('default',data=U)
 		#with h5py.File('I.h5','w') as i:dset=i.create_dataset('default',data=I)
 	elif args.Augment:
-		S = Synthetic(filename=sys.argv[2], Label=sys.argv[3], d=sys.argv[5], n=sys.argv[6])
+		File = sys.argv[2]
+		Label = sys.argv[3]
+		d = sys.argv[5]
+		n = sys.argv[6]
+		S = Synthetic(filename=File, Label=Label, d=d, n=n)
 		S.generate()
 	elif args.Voxelise:
 		Voxel(filename=sys.argv[2], size=sys.argv[3])
