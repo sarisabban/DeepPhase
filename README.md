@@ -26,23 +26,19 @@
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
-5. For **DeepClass** (protein classification dataset):
-The dataset has to be segmented depending on the number of reflection points of each example into the following segmens
-[less the 1k, 1k-10k, 10k-500k, 500k-1M, 1M+]
-500k-1M and 1M+ will be voxelised
-`python crystal.py --Voxelise FILENAME.csv`
+5. Prepare dataset for training:
+For **DeepClass** (protein classification dataset):
+The dataset has to be segmented depending on the number of reflection points of each example into the following segmens: less the 1K, 1K-10K, 10K-500K, 500K-1M, and more than 1M. The 500k-1M and 1M+ will be voxelised while the others will not. Run the following command:
 
+`python crystal.py --Voxelise FILENAME.csv` or `python crystal.py -V FILENAME.csv`
 
+The dataset is too large to be loaded anywhere, therefore the segmented (and voxelised) datasets has to be vectorised (or serialised to save this step into files). This command will build the tensors, normalise, standerdise or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
 
-Vectorise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise, standerdise, or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
+`python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepClass FILENAME.csv 10000`
 
-If you want to serialise the vectorised dataset then replace --Vectorise (-V) with --Serialise (-S).
+For the 10K-500K, 500K-1M, and 1M+ segments it is recommended to keep NUMBER_OF_POINTS to 10000 since we found this trains best in DeepClass. The other segments use 100.
 
-
-
-
-`python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepClass FILENAME.csv 1024`
-
+If you want to serialise the vectorised the dataset then replace --Vectorise (-V) with --Serialise (-S).
 
 
 
@@ -53,6 +49,37 @@ If you want to serialise the vectorised dataset then replace --Vectorise (-V) wi
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+***THIS PROJECT IS STILL A WORK IN PROGRESS...***
+***THIS PROJECT IS STILL A WORK IN PROGRESS...***
+***THIS PROJECT IS STILL A WORK IN PROGRESS...***
+
+### Train Network:
+* COMPILED DATASET DOWNLOAD LINK
+
+* To train the neural network on the dataset use the following command:
+
+`python network.py`
 
 
 
@@ -65,22 +92,6 @@ If you want to serialise the vectorised dataset then replace --Vectorise (-V) wi
 
 For **DeepPhase** (reflection point phase prediction dataset):
 `python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepPhase FILENAME.csv 1024`
-
-
-
-
-
-
-***THIS PROJECT IS STILL A WORK IN PROGRESS...***
-
-### Train Network:
-* COMPILED DATASET DOWNLOAD LINK
-
-* To train the neural network on the dataset use the following command:
-
-`python network.py`
-
-
 
 
 
