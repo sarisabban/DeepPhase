@@ -26,15 +26,46 @@
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
-5. Vectorise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise, standerdise, or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
+5. For **DeepClass** (protein classification dataset):
+The dataset has to be segmented depending on the number of reflection points of each example into the following segmens
+[less the 1k, 1k-10k, 10k-500k, 500k-1M, 1M+]
+500k-1M and 1M+ will be voxelised
+`python crystal.py --Voxelise FILENAME.csv`
 
-For **DeepClass** (protein classification dataset):
+
+
+Vectorise the dataset. The dataset is too large to be loaded anywhere, therefore this command will build the tensors, normalise, standerdise, or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
+
+If you want to serialise the vectorised dataset then replace --Vectorise (-V) with --Serialise (-S).
+
+
+
+
 `python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepClass FILENAME.csv 1024`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 For **DeepPhase** (reflection point phase prediction dataset):
 `python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepPhase FILENAME.csv 1024`
 
-If you want to serialise the vectorised dataset then replace --Vectorise (-V) with --Serialise (-S).
 
 
 
