@@ -189,7 +189,7 @@ def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 			# 3. Collect each point values
 			NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
 				in zip(T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
-#			# 4. Sample points at regular intervals
+			# 4. Sample points at regular intervals
 			T = NC[::len(NC)//max_size][:max_size]
 			assert len(T) == max_size, 'Max number of points incorrect'
 			T = [i for sub in T for i in sub]
@@ -297,6 +297,17 @@ def Voxel(filename='Gen.csv', show=False):
 			if 1e4 < len(T)/6 <= 5e5: size=0.005; fn='10k-500k.csv'; vox=False
 			if 5e5 < len(T)/6 <= 1e6: size=0.008; fn='500k-1M.csv' ; vox=True
 			if 1e6 < len(T)/6:        size=0.010; fn='1M+.csv'     ; vox=True
+
+#			if       len(T)/6 <= 1e3: size=0.001; fn='1k-.csv'      ; vox=False
+#			if 1e3 < len(T)/6 <= 1e4: size=0.005; fn='1k-10k.csv'   ; vox=False
+#			if 1e4 < len(T)/6 <= 1e5: size=0.005; fn='10k-100k.csv' ; vox=False
+#			if 1e5 < len(T)/6 <= 2e5: size=0.008; fn='100k-200k.csv'; vox=True
+#			if 2e5 < len(T)/6 <= 3e5: size=0.008; fn='200k-300k.csv'; vox=True
+#			if 3e5 < len(T)/6 <= 4e5: size=0.008; fn='300k-400k.csv'; vox=True
+#			if 4e5 < len(T)/6 <= 5e5: size=0.008; fn='400k-500k.csv'; vox=True
+#			if 5e5 < len(T)/6 <= 1e6: size=0.008; fn='500k-1M.csv'  ; vox=True
+#			if 1e6 < len(T)/6:        size=0.010; fn='1M+.csv'      ; vox=True
+
 			X = T[0::6]
 			Y = T[1::6]
 			Z = T[2::6]
