@@ -26,6 +26,12 @@
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
+If you want to compile a dataset of computer generated reflections from PDB files and augment each of these example then use the following command:
+
+`python crystal.py --Augment NUMBER` or `python crystal.py -A 10`
+
+Where NUMBER is the number of augments to each example.
+
 5. Prepare dataset for training:
 For **DeepClass** (protein classification dataset):
 The dataset has to be segmented depending on the number of reflection points of each example into the following segmens: less the 1K, 1K-10K, 10K-500K, 500K-1M, and more than 1M. The 500k-1M and 1M+ will be voxelised while the others will not. Run the following command:
