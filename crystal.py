@@ -246,6 +246,8 @@ class Dataset():
 							label = 'Helix'
 						elif H_frac==0.00 and S_frac>=0.50 and L_frac<=0.50:
 							label = 'Sheet'
+						else:
+							break
 						assert len(X)==len(Y)==len(Z)==len(R)==len(E)==len(P),\
 						'\u001b[31m[-] {} Failed: values not equal\u001b[0m'.\
 						format(item.upper())
