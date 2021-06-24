@@ -23,13 +23,23 @@ class Dataset():
 	Build a .csv dataset for protein X-ray crystal diffraction points
 	from .mtz and .pdb files and compile all
 	'''
+	def __init__(self, PDB_MTZ='MTZ', d=2.5, n=10, augment=False):
+		self.PDB_MTZ = PDB_MTZ
+		self.d = d
+		self.n = n
+		self.augment = augment
+		if self.PDB_MTZ == 'MTZ': self.n = 1
+		elif augment == False: self.n = 1
 	def download(self, ID):
 		''' Downloads a structure's .mtz and .pdb files. '''
 		Murl = 'http://edmaps.rcsb.org/coefficients/{}.mtz'.format(ID)
 		Purl = 'https://files.rcsb.org/download/{}.pdb'.format(ID)
-		urllib.request.urlretrieve(Murl, '{}.mtz'.format(ID))
-		urllib.request.urlretrieve(Purl, '{}.pdb'.format(ID))
-	def features(self, filename):
+		if self.PDB_MTZ == 'MTZ':
+			urllib.request.urlretrieve(Murl, '{}.mtz'.format(ID))
+			urllib.request.urlretrieve(Purl, '{}.pdb'.format(ID))
+		elif self.PDB_MTZ == 'PDB':
+			urllib.request.urlretrieve(Purl, '{}.pdb'.format(ID))
+	def Ref_MTZ(self, filename):
 		'''
 		Extracts Space group, Unit Cell, X, Y, Z, Resolution,
 		E-value, and Phase from .mtz files. More info can be
@@ -64,7 +74,7 @@ class Dataset():
 					X.append(x)
 					Y.append(y)
 					Z.append(z)
-				# Calculated Phases
+				# Phase
 				P = list(a.expand_to_p1().phases().data())
 		for a in arrays:
 			label = str(a.info()).split(':')[-1].split(',')[-1]
@@ -75,6 +85,104 @@ class Dataset():
 				e_val = a.quasi_normalize_structure_factors()
 				E = list(e_val.expand_to_p1().f_sq_as_f().data())
 		return(S, C, X, Y, Z, R, E, P)
+	def Ref_PDB(self, pdbstr):
+		'''
+		Generate Space group, Unit Cell, X, Y, Z, Resolution,
+		E-value, and Phase from .pdb files. More info can be
+		found here:
+		https://cci.lbl.gov/cctbx_docs/cctbx/cctbx.miller.html
+		'''
+		import iotbx.pdb
+		xrs = iotbx.pdb.input(source_info=None, lines=pdbstr)\
+		.xray_structure_simple()
+		a = xrs.structure_factors(d_min=self.d).f_calc()
+		# Cell Dimentions
+		UC = a.unit_cell()
+		C = str(UC)[1:-1]
+		C = tuple(map(str, C.split(', ')))
+		# Space Group
+		S = str(a.customized_copy()).split()[-1].split(')')[0]
+		# P1 expand
+		P1 = a.expand_to_p1().indices()
+		# Resolution
+		R = [round(x, 5) for x in list(UC.d(P1))]
+		# Phase
+		P = [round(x, 5) for x in list(a.expand_to_p1().phases().data())]
+		amp = a.amplitudes()
+		amp.setup_binner(auto_binning=True)
+		amp.binner()
+		e_val = amp.quasi_normalize_structure_factors()
+		# E-values in P1 space group
+		E = list(e_val.expand_to_p1().f_sq_as_f().data())
+		E = [round(x, 5) for x in E]
+		# Convert miller hkl to polar
+		polar_coordinates = list(UC.reciprocal_space_vector(P1))
+		X = []
+		Y = []
+		Z = []
+		for x, y, z in polar_coordinates:
+			X.append(round(x, 5))
+			Y.append(round(y, 5))
+			Z.append(round(z, 5))
+		return(S, C, X, Y, Z, R, E, P)
+	def Augment(self, filename):
+		''' Augment a .pdb file's molecular position and unit cell '''
+		import pymol
+		name = filename[:-4]
+		pymol.cmd.load(filename)
+		# Flip molecule
+		x  = random.randint(1, 10)
+		y  = random.randint(1, 10)
+		z  = random.randint(1, 10)
+		xr = random.randint(1, 360)
+		yr = random.randint(1, 360)
+		zr = random.randint(1, 360)
+		pymol.cmd.translate([x, y, z], name)
+		pymol.cmd.rotate([1, 0, 0], xr, name)
+		pymol.cmd.rotate([0, 1, 0], yr, name)
+		pymol.cmd.rotate([0, 0, 1], zr, name)
+		pymol.cmd.save('temp.pdb', name)
+		# Return molecule
+		pymol.cmd.rotate([0, 0, 1], -zr, name)
+		pymol.cmd.rotate([0, 1, 0], -yr, name)
+		pymol.cmd.rotate([1, 0, 0], -xr, name)
+		pymol.cmd.translate([-x, -y, -z], name)
+		# Augment crystal unit cell
+		with open(filename, 'r') as f:
+			for line in f:
+				tag = line.strip().split()[0]
+				if tag == 'HEADER': header = line
+				if tag == 'CRYST1': crystal = line
+			L = crystal.strip().split()
+			ID        = L[0]
+			UCeA      = float(L[1])
+			UCeB      = float(L[2])
+			UCeC      = float(L[3])
+			UCaAlpha  = float(L[4])
+			UCaBeta   = float(L[5])
+			UCaGamma  = float(L[6])
+			Space     = ' '.join(L[7:-1])
+			Z         = L[-1]
+			UCeA      += random.choice([-1*random.random(), 1*random.random()])
+			UCeB      += random.choice([-1*random.random(), 1*random.random()])
+			UCeC      += random.choice([-1*random.random(), 1*random.random()])
+			#UCaAlpha  += random.choice([-1*random.random(), 1*random.random()])
+			#UCaBeta   += random.choice([-1*random.random(), 1*random.random()])
+			#UCaGamma  += random.choice([-1*random.random(), 1*random.random()])
+			UCeA      = round(UCeA, 3)
+			UCeB      = round(UCeB, 3)
+			UCeC      = round(UCeC, 3)
+			UCaAlpha  = round(UCaAlpha, 3)
+			UCaBeta   = round(UCaBeta, 3)
+			UCaGamma  = round(UCaGamma, 3)
+			crystal = '{:6} {:>8} {:>8} {:>8} {:>6} {:>6} {:>6} {:<10} {:>4}\n'\
+			.format(ID, UCeA, UCeB, UCeC, UCaAlpha, UCaBeta, UCaGamma, Space, Z)
+		# Export augmented structure
+		with open('temp.pdb', 'r') as t: aug = t.readlines()
+		augmented = header + crystal
+		for i in aug: augmented += i
+		os.remove('temp.pdb')
+		return(augmented)
 	def labels(self, filename):
 		structure = Bio.PDB.PDBParser(QUIET=True).get_structure('X', filename)
 		dssp = Bio.PDB.DSSP(structure[0], filename, acc_array='Wilke')
@@ -105,10 +213,34 @@ class Dataset():
 						print('{}[-] {} Failed: could not download{}'\
 						.format(red, item.upper(), ret))
 						continue
-					try:
-						Mfilename = item + '.mtz'
-						Pfilename = item + '.pdb'
-						S, C, X, Y, Z, R, E, P = self.features(Mfilename)
+					for count in range(self.n):
+						if self.PDB_MTZ == 'MTZ':
+							try:
+								Mfilename = item + '.mtz'
+								Pfilename = item + '.pdb'
+								S, C, X, Y, Z, R, E, P = self.Ref_MTZ(Mfilename)
+								os.remove(Mfilename)
+							except:
+								red = '\u001b[31m'
+								ret = '\u001b[0m'
+								print('{}[-] {} Failed: problem compiling{}'\
+								.format(item.upper()))
+								continue
+						if self.PDB_MTZ == 'PDB':
+							try:
+								Pfilename = item + '.pdb'
+								if self.augment == True:
+									pdbstr = self.Augment(Pfilename)
+								elif self.augment == False:
+									with open(Pfilename) as f: pdbstr = f.read()
+								try: S,C,X,Y,Z,R,E,P = self.Ref_PDB(pdbstr)
+								except: continue
+							except:
+								red = '\u001b[31m'
+								ret = '\u001b[0m'
+								print('{}[-] {} Failed: problem compiling{}'\
+								.format(item.upper()))
+								continue
 						H_frac, S_frac, L_frac = self.labels(Pfilename)
 						if   H_frac>=0.50 and S_frac==0.00 and L_frac<=0.50:
 							label = 'Helix'
@@ -134,17 +266,12 @@ class Dataset():
 							p = str(round(p, 5))
 							exp.append(x+','+y+','+z+','+r+','+e+','+p)
 						example = ','.join(exp)
-						temp.write(item.upper()+','+label+',')
+						TheID = item
+						if self.n != 1: TheID = '{}_{}'.format(TheID, count+1)
+						temp.write(TheID.upper()+','+label+',')
 						temp.write(example + '\n')
 						size.append(len(X))
-						os.remove(Mfilename)
-						os.remove(Pfilename)
-					except:
-						red = '\u001b[31m'
-						ret = '\u001b[0m'
-						print('{}[-] {} Failed: problem compiling{}'\
-						.format(item.upper()))
-						continue
+					os.remove(Pfilename)
 			h1 = 'PDB_ID,Class,Space_Group,'
 			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
 			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
@@ -292,22 +419,15 @@ def Voxel(filename='Gen.csv', show=False):
 			UCa = ','.join(line[6:9])
 			T = line[9:]
 			T = [float(i) for i in T]
-			if       len(T)/6 <= 1e3: size=0.001; fn='1k-.csv'     ; vox=False
-			if 1e3 < len(T)/6 <= 1e4: size=0.005; fn='1k-10k.csv'  ; vox=False
-			if 1e4 < len(T)/6 <= 5e5: size=0.005; fn='10k-500k.csv'; vox=False
-			if 5e5 < len(T)/6 <= 1e6: size=0.008; fn='500k-1M.csv' ; vox=True
-			if 1e6 < len(T)/6:        size=0.010; fn='1M+.csv'     ; vox=True
-
-#			if       len(T)/6 <= 1e3: size=0.001; fn='1k-.csv'      ; vox=False
-#			if 1e3 < len(T)/6 <= 1e4: size=0.005; fn='1k-10k.csv'   ; vox=False
-#			if 1e4 < len(T)/6 <= 1e5: size=0.005; fn='10k-100k.csv' ; vox=False
-#			if 1e5 < len(T)/6 <= 2e5: size=0.008; fn='100k-200k.csv'; vox=True
-#			if 2e5 < len(T)/6 <= 3e5: size=0.008; fn='200k-300k.csv'; vox=True
-#			if 3e5 < len(T)/6 <= 4e5: size=0.008; fn='300k-400k.csv'; vox=True
-#			if 4e5 < len(T)/6 <= 5e5: size=0.008; fn='400k-500k.csv'; vox=True
-#			if 5e5 < len(T)/6 <= 1e6: size=0.008; fn='500k-1M.csv'  ; vox=True
-#			if 1e6 < len(T)/6:        size=0.010; fn='1M+.csv'      ; vox=True
-
+			if       len(T)/6 <= 1e3: size=0.001; fn='1k-.csv'      ; vox=False
+			if 1e3 < len(T)/6 <= 1e4: size=0.005; fn='1k-10k.csv'   ; vox=False
+			if 1e4 < len(T)/6 <= 1e5: size=0.005; fn='10k-100k.csv' ; vox=False
+			if 1e5 < len(T)/6 <= 2e5: size=0.008; fn='100k-200k.csv'; vox=True
+			if 2e5 < len(T)/6 <= 3e5: size=0.008; fn='200k-300k.csv'; vox=True
+			if 3e5 < len(T)/6 <= 4e5: size=0.008; fn='300k-400k.csv'; vox=True
+			if 4e5 < len(T)/6 <= 5e5: size=0.008; fn='400k-500k.csv'; vox=True
+			if 5e5 < len(T)/6 <= 1e6: size=0.008; fn='500k-1M.csv'  ; vox=True
+			if 1e6 < len(T)/6:        size=0.010; fn='1M+.csv'      ; vox=True
 			X = T[0::6]
 			Y = T[1::6]
 			Z = T[2::6]
@@ -368,145 +488,6 @@ def Voxel(filename='Gen.csv', show=False):
 				o3d.visualization.draw_geometries([xyz_centers])
 				os.remove('Centers.xyz')
 
-class Synthetic():
-	def __init__(self, filename='Helix.pdb', Label='Helix', d=2.5, n=3,
-				UCe=True, UCa=True, S=True):
-		import pymol
-		self.filename = filename
-		self.Label = Label
-		self.n = n
-		self.d = d
-		self.UCe = UCe
-		self.UCa = UCa
-		self.S = S
-		pymol.cmd.load(self.filename)
-	def augment(self):
-		''' Augment a .pdb file '''
-		name = self.filename[:-4]
-		x  = random.randint(1, 10)
-		y  = random.randint(1, 10)
-		z  = random.randint(1, 10)
-		xr = random.randint(1, 360)
-		yr = random.randint(1, 360)
-		zr = random.randint(1, 360)
-		pymol.cmd.translate([x, y, z], name)
-		pymol.cmd.rotate([1, 0, 0], xr, name)
-		pymol.cmd.rotate([0, 1, 0], yr, name)
-		pymol.cmd.rotate([0, 0, 1], zr, name)
-		pymol.cmd.save('temp.pdb', name)
-		pymol.cmd.rotate([0, 0, 1], -zr, name)
-		pymol.cmd.rotate([0, 1, 0], -yr, name)
-		pymol.cmd.rotate([1, 0, 0], -xr, name)
-		pymol.cmd.translate([-x, -y, -z], name)
-		with open(self.filename, 'r') as f:
-			header = f.readline()
-			crystal = f.readline()
-			L = crystal.strip().split()
-			ID   = L[0]
-			UCeA = float(L[1])
-			UCeB = float(L[2])
-			UCeC = float(L[3])
-			UCaAlpha = float(L[4])
-			UCaBeta  = float(L[5])
-			UCaGamma = float(L[6])
-			Space    = ' '.join(L[7:])
-			Z        = int(8)
-			if self.UCe == True:
-				UCeA = float(random.randint(1, 250))
-				UCeB = float(random.randint(1, 450))
-				UCeC = float(random.randint(1, 450))
-			if self.UCa == True:
-				UCaAlpha = float(random.choice([90, 110]))
-				UCaBeta  = float(random.choice([90, 105, 110]))
-				UCaGamma = float(random.choice([90, 120]))
-			if self.S == True:
-				SP = [	'P 21 21 21', 'C 2 2 21', 'P 21 21 2',
-						'P 1'       , 'P 1 21 1', 'C 1 2 1']
-				Space = random.choice(SP)######## ERROR IN SPACE GROUP #########
-			crystal = '{:6} {:>8} {:>8} {:>8} {:>6} {:>6} {:>6} {:>10} {:>4}'\
-			.format(ID, UCeA, UCeB, UCeC, UCaAlpha, UCaBeta, UCaGamma, Space, Z)
-		with open('temp.pdb', 'r') as t:
-			aug = t.readlines()
-		augmented = header+crystal
-		for i in aug: augmented += i
-		os.remove('temp.pdb')
-		return(augmented)
-	def reflections(self, pdbstr='x', export_mtz=False):
-		''' Generate reflection data from a .pdb file '''
-		import iotbx.pdb
-		xrs = iotbx.pdb.input(source_info=None, lines=pdbstr)\
-		.xray_structure_simple()
-		a = xrs.structure_factors(d_min=self.d).f_calc()
-		UC = a.unit_cell()
-		C = str(UC)[1:-1]
-		C = tuple(map(str, C.split(', ')))
-		S = str(a.customized_copy()).split()[-1].split(')')[0]
-		P1 = a.expand_to_p1().indices()
-		R = [round(x, 5) for x in list(UC.d(P1))]
-		P = [round(x, 5) for x in list(a.phases().data())]
-		amp = a.amplitudes()
-		amp.setup_binner(auto_binning=True)
-		amp.binner()
-		e_val = amp.quasi_normalize_structure_factors()
-		E = list(e_val.expand_to_p1().f_sq_as_f().data())
-		E = [round(x, 5) for x in E]
-		polar_coordinates = list(UC.reciprocal_space_vector(P1))
-		X = []
-		Y = []
-		Z = []
-		for x, y, z in polar_coordinates:
-			X.append(round(x, 5))
-			Y.append(round(y, 5))
-			Z.append(round(z, 5))
-		# Export as .mtz file
-		if export_mtz == True:
-			mtz_dataset = a.as_mtz_dataset(column_root_label='FC')
-			mtz_object = mtz_dataset.mtz_object()
-			mtz_object.write(file_name='{}.mtz'.format(filename[:-4]))
-		return(S, C, X, Y, Z, R, E, P)
-	def generate(self):
-		''' Generate synthetic reflection data for n orientations of a .pdb '''
-		size = []
-		with open('temp', 'a') as f:
-			for i in range(1, self.n+1):
-				pdb_str = self.augment()
-				S, C, X, Y, Z, R, E, P = self.reflections(pdb_str)
-				size.append(len(X))
-				exp = [str(i)]
-				exp.append(self.Label)
-				exp.append(S)
-				exp.append(C[0])
-				exp.append(C[1])
-				exp.append(C[2])
-				exp.append(C[3])
-				exp.append(C[4])
-				exp.append(C[5])
-				for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
-					exp.append(str(x))
-					exp.append(str(y))
-					exp.append(str(z))
-					exp.append(str(r))
-					exp.append(str(e))
-					exp.append(str(p))
-				print('[+] {} - Number of points generated {:,}'\
-				.format(self.Label, len(X)))
-				line = ','.join(exp)
-				f.write(line+'\n')
-		h1 = 'Augment,Class,Space_Group,'
-		h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
-		h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
-		head = [h1 + h2 + h3]
-		for i in range(1, max(size)+1):
-			head.append(',X_{},Y_{},Z_{},Resolution_{},E-value_{},Phase_{}'\
-			.format(i, i, i, i, i, i))
-		head = ''.join(head)
-		with open('{}.csv'.format(self.Label), 'w') as F:
-			with open('temp', 'r') as f:
-				F.write(head+'\n')
-				for line in f:
-					F.write(line)
-		os.remove('temp')
-
 def main():
 	if  args.Dataset:
 		D = Dataset()
@@ -528,12 +509,12 @@ def main():
 		#with h5py.File('U.h5','w') as u:dset=u.create_dataset('default',data=U)
 		#with h5py.File('I.h5','w') as i:dset=i.create_dataset('default',data=I)
 	elif args.Augment:
-		File = sys.argv[2]
-		Label = sys.argv[3]
-		d = sys.argv[5]
-		n = sys.argv[6]
-		S = Synthetic(filename=File, Label=Label, d=d, n=n)
-		S.generate()
+		PDB_MTZ = 'PDB'
+		d = 2.5
+		n = sys.argv[2]
+		augment = True
+		D = Dataset(PDB_MTZ=PDB_MTZ, n=n, d=d, augment=augment)
+		D.run()
 	elif args.Voxelise:
 		Voxel(filename=sys.argv[2], size=sys.argv[3])
 
