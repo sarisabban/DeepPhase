@@ -18,7 +18,7 @@
 
 **NOTE:** This command will result in some perminant changes to your operating system setup to ensure the correct running of the required libraries.
 
-3. Download a list of PDB IDs from RCSB.org, make sure the all the IDs are in a single line separated by a comma as per the RCSB standard.
+3. Download a list of PDB IDs from RCSB.org in a file called **IDs.txt**, make sure the all the IDs are in a single line separated by a comma as per the RCSB standard.
 
 4. Compile the dataset using one of the following commands:
 
