@@ -513,7 +513,7 @@ def main():
 	elif args.Augment:
 		PDB_MTZ = 'PDB'
 		d = 2.5
-		n = sys.argv[2]
+		n = int(sys.argv[2])
 		augment = True
 		D = Dataset(PDB_MTZ=PDB_MTZ, n=n, d=d, augment=augment)
 		D.run()
