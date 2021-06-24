@@ -128,8 +128,8 @@ class Dataset():
 	def Augment(self, filename):
 		''' Augment a .pdb file's molecular position and unit cell '''
 		import pymol
-		name = filename[:-4]
 		pymol.cmd.load(filename)
+		name = pymol.cmd.get_names()[0]
 		# Flip molecule
 		x  = random.randint(1, 10)
 		y  = random.randint(1, 10)
