@@ -7,6 +7,7 @@ import urllib
 import Bio.PDB
 import argparse
 import numpy as np
+import open3d as o3d
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
