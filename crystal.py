@@ -201,7 +201,7 @@ class Dataset():
 		L_frac = L/len(SS)
 		return(H_frac, S_frac, L_frac)
 	def run(self, IDs='IDs.txt'):
-		with open('CrystalDataset.csv', 'a') as f:
+		with open('CrystalDataset.csv', 'a') as F:
 			h1 = 'PDB_ID,Class,Space_Group,'
 			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
 			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
@@ -277,8 +277,8 @@ class Dataset():
 						example = ','.join(exp)
 						TheID = item
 						if self.n != 1: TheID = '{}_{}'.format(TheID, count+1)
-						f.write(TheID.upper()+','+label+',')
-						f.write(example + '\n')
+						F.write(TheID.upper()+','+label+',')
+						F.write(example + '\n')
 						size.append(len(X))
 					os.remove(Pfilename)
 #			h1 = 'PDB_ID,Class,Space_Group,'
