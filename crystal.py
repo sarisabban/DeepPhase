@@ -200,7 +200,13 @@ class Dataset():
 		L_frac = L/len(SS)
 		return(H_frac, S_frac, L_frac)
 	def run(self, IDs='IDs.txt'):
-		with open('temp', 'a') as temp:
+		with open('CrystalDataset.csv', 'a') as f:
+			h1 = 'PDB_ID,Class,Space_Group,'
+			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
+			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
+			h4 = ',X,Y,Z,Resolution,E-value,Phase\n'
+			head = h1 + h2 + h3 + h4
+			f.write(head)
 			size = []
 			with open(IDs) as f:
 				line = f.read().strip().lower().split(',')
@@ -270,23 +276,24 @@ class Dataset():
 						example = ','.join(exp)
 						TheID = item
 						if self.n != 1: TheID = '{}_{}'.format(TheID, count+1)
-						temp.write(TheID.upper()+','+label+',')
-						temp.write(example + '\n')
+						f.write(TheID.upper()+','+label+',')
+						f.write(example + '\n')
 						size.append(len(X))
 					os.remove(Pfilename)
-			h1 = 'PDB_ID,Class,Space_Group,'
-			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
-			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
-			head = [h1 + h2 + h3]
-			for i in range(1, max(size)+1):
-				head.append(',X_{},Y_{},Z_{},Resolution_{},E-value_{},Phase_{}'\
-				.format(i, i, i, i, i, i))
-			head = ''.join(head)
-		with open('CrystalDataset.csv', 'w') as f:
-			with open('temp', 'r') as t:
-				f.write(head + '\n')
-				for line in t: f.write(line)
-		os.remove('temp')
+#			h1 = 'PDB_ID,Class,Space_Group,'
+#			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
+#			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
+#			h4 = ',X,Y,Z,Resolution,E-value,Phase'
+#			head = h1 + h2 + h3 + h4
+#			for i in range(1, max(size)+1):
+#				head.append(',X_{},Y_{},Z_{},Resolution_{},E-value_{},Phase_{}'\
+#				.format(i, i, i, i, i, i))
+#			head = ''.join(head)
+#		with open('CrystalDataset.csv', 'w') as f:
+#			with open('temp', 'r') as t:
+#				f.write(head + '\n')
+#				for line in t: f.write(line)
+#		os.remove('temp')
 
 def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 	fp=np.float32, ip=np.int32):
