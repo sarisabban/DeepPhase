@@ -6,7 +6,7 @@ import urllib.request
 """
 # BASH COMMAND SEQUENCE
 sudo ln -s /usr/bin/python3 /usr/bin/python
-sudo apt install libglu1-mesa-dev freeglut3-dev mesa-common-dev scons build-essential
+sudo apt install dssp libglu1-mesa-dev freeglut3-dev mesa-common-dev scons build-essential
 mkdir CCTBX
 cd ./CCTBX
 wget https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py
@@ -35,7 +35,7 @@ def setup():
 	https://github.com/cctbx/cctbx_project/
 	'''
 	os.system('sudo ln -s /usr/bin/python3 /usr/bin/python')
-	os.system('sudo apt install libglu1-mesa-dev freeglut3-dev mesa-common-dev scons build-essential')
+	os.system('sudo apt install dssp libglu1-mesa-dev freeglut3-dev mesa-common-dev scons build-essential')
 	version = sys.version_info
 	V = str(version[0])+str(version[1])
 	url = 'https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py'
