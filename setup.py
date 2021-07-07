@@ -19,7 +19,7 @@ conda create -n Cenv
 conda activate Cenv
 conda install -c schrodinger pymol -y
 conda install -c conda-forge cctbx tqdm keras tensorflow -y
-conda install -c anaconda numpy scipy biopython pandas scikit-learn h5py -y
+conda install -c anaconda numpy scipy biopython pandas scikit-learn h5py h5py -y
 conda install -c open3d-admin open3d -y
 
 # IBEX SETUP
@@ -57,6 +57,6 @@ def setup():
 	os.system('./conda init bash')
 	os.system('conda activate Cenv')
 	os.system('conda install -c schrodinger pymol -y')
-	os.system('conda install tqdm biopython h5py pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1 -y')
+	os.system('conda install tqdm biopython h5py scipy pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1 -y')
 	os.system('conda install -c open3d-admin open3d -y')
-setup()
+setup()  
