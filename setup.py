@@ -3,6 +3,32 @@ import sys
 import subprocess
 import urllib.request
 
+"""
+# BASH COMMAND SEQUENCE
+sudo ln -s /usr/bin/python3 /usr/bin/python
+sudo apt install libglu1-mesa-dev freeglut3-dev mesa-common-dev scons build-essential
+mkdir CCTBX
+cd ./CCTBX
+wget https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py
+python bootstrap.py --use-conda --python 38 --nproc=4
+bash ./Miniconda3-latest-Linux-x86_64.sh
+    yes
+    ./miniconda3
+    yes
+conda create -n Cenv
+conda activate Cenv
+conda install -c schrodinger pymol -y
+conda install -c conda-forge cctbx tqdm keras tensorflow -y
+conda install -c anaconda numpy scipy biopython pandas scikit-learn h5py -y
+conda install -c open3d-admin open3d -y
+
+# IBEX SETUP
+conda create -n POINT
+conda activate POINT
+conda install -c anaconda numpy scipy scikit-learn h5py keras-gpu tensorflow-gpu -y
+conda deactivate
+"""
+
 def setup():
 	'''
 	Installs required dependencies for this script to work
@@ -34,29 +60,3 @@ def setup():
 	os.system('conda install tqdm biopython h5py pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1 -y')
 	os.system('conda install -c open3d-admin open3d -y')
 setup()
-
-"""
-# BASH COMMAND SEQUENCE
-mkdir CCTBX
-cd ./CCTBX
-wget https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py
-python bootstrap.py --use-conda --python 38 --nproc=4
-bash ./Miniconda3-latest-Linux-x86_64.sh
-    yes
-    ./miniconda3
-    yes
-conda create -n Cenv
-conda activate Cenv
-conda install -c schrodinger pymol -y
-conda install -c conda-forge cctbx tqdm keras tensorflow -y
-conda install -c anaconda numpy scipy biopython pandas scikit-learn h5py -y
-conda install -c open3d-admin open3d -y
-"""
-
-"""
-# IBEX SETUP
-conda create -n POINT
-conda activate POINT
-conda install -c anaconda numpy scipy scikit-learn h5py keras-gpu tensorflow-gpu -y
-conda deactivate
-"""
