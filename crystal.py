@@ -189,7 +189,7 @@ class Dataset():
 		dssp = Bio.PDB.DSSP(structure[0], filename, acc_array='Wilke')
 		SS = []
 		for aa in dssp:
-			if aa[2] == 'G' or aa[2] == 'H' or aa[2] == 'I':   ss = 'H'
+			if   aa[2] == 'G' or aa[2] == 'H' or aa[2] == 'I': ss = 'H'
 			elif aa[2] == 'B' or aa[2] == 'E':                 ss = 'S'
 			elif aa[2] == 'S' or aa[2] == 'T' or aa[2] == '-': ss = 'L'
 			SS.append(ss)
