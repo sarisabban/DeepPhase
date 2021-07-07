@@ -207,7 +207,7 @@ class Dataset():
 			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
 			h4 = ',X,Y,Z,Resolution,E-value,Phase\n'
 			head = h1 + h2 + h3 + h4
-			f.write(head)
+			F.write(head)
 			size = []
 			with open(IDs) as f:
 				line = f.read().strip().lower().split(',')
