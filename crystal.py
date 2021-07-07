@@ -231,7 +231,8 @@ class Dataset():
 								red = '\u001b[31m'
 								ret = '\u001b[0m'
 								print('{}[-] {} Failed: problem compiling{}'\
-								.format(item.upper()))
+								.format(red, item.upper(), ret))
+								os.remove(Mfilename)
 								continue
 						if self.PDB_MTZ == 'PDB':
 							try:
@@ -246,7 +247,7 @@ class Dataset():
 								red = '\u001b[31m'
 								ret = '\u001b[0m'
 								print('{}[-] {} Failed: problem compiling{}'\
-								.format(item.upper()))
+								.format(red, item.upper(), ret))
 								continue
 						H_frac, S_frac, L_frac = self.labels(Pfilename)
 						if   H_frac>=0.50 and S_frac==0.00 and L_frac<=0.50:
