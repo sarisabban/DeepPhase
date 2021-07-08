@@ -33,6 +33,7 @@ class Dataset():
 		elif augment == False: self.n = 1
 	def download(self, ID):
 		''' Downloads a structure's .mtz and .pdb files. '''
+		ID = ID.lower()
 		Murl = 'http://edmaps.rcsb.org/coefficients/{}.mtz'.format(ID)
 		Purl = 'https://files.rcsb.org/download/{}.pdb'.format(ID)
 		if self.PDB_MTZ == 'MTZ':
