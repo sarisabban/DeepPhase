@@ -3,11 +3,11 @@ import sys
 import h5py
 import tqdm
 import random
-import urllib
 import Bio.PDB
 import argparse
 import numpy as np
 import open3d as o3d
+import urllib.request
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
