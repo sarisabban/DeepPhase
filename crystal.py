@@ -9,20 +9,71 @@ import urllib
 import Bio.PDB
 import argparse
 import statistics
+import subprocess
 import numpy as np
 import open3d as o3d
 import urllib.request
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-parser = argparse.ArgumentParser(description='Compiling and vectorising X-ray crystal diffraction datasets')
-parser.add_argument('-D', '--Dataset'  , nargs='+', help='Compile a datset of protein reflections points, include a text file of PDB IDs')
-parser.add_argument('-V', '--Vectorise', nargs='+', help='Vectorise the datset only')
-parser.add_argument('-S', '--Serialise', nargs='+', help='Vectorise and serialise the datset')
-parser.add_argument('-A', '--Augment',   nargs='+', help='Augment a .pdb file to different orientations and generate reflection data')
-parser.add_argument('-X', '--Voxelise',  nargs='+', help='Voxelise the points of in a .csv file')
-parser.add_argument('-G', '--Generator', nargs='+', help='Generate batches of data and push them through the network on the fly')
+parser = argparse.ArgumentParser(description='Compiling, vectorising, voxelise, and train on X-ray crystal diffraction datasets')
+parser.add_argument('-U', '--Setup'    , action='store_true', help='Compile a datset of protein reflections points, include a text file of PDB IDs')
+parser.add_argument('-D', '--Dataset'  , nargs='+',           help='Compile a datset of protein reflections points, include a text file of PDB IDs')
+parser.add_argument('-V', '--Vectorise', nargs='+',           help='Vectorise the datset only')
+parser.add_argument('-S', '--Serialise', nargs='+',           help='Vectorise and serialise the datset')
+parser.add_argument('-A', '--Augment',   nargs='+',           help='Augment a .pdb file to different orientations and generate reflection data')
+parser.add_argument('-X', '--Voxelise',  nargs='+',           help='Voxelise the points of in a .csv file')
+parser.add_argument('-G', '--Generator', nargs='+',           help='Generate batches of data and push them through the network on the fly')
 args = parser.parse_args()
+
+def setup():
+	'''
+	Installs required dependencies for this script to work
+	https://github.com/cctbx/cctbx_project/
+	----------------------------------------------------------------------------
+	# BASH COMMAND SEQUENCE
+	sudo ln -s /usr/bin/python3 /usr/bin/python
+	sudo apt install dssp libglu1-mesa-dev freeglut3-dev mesa-common-dev scons build-essential
+	mkdir CCTBX
+	cd ./CCTBX
+	wget https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py
+	python bootstrap.py --use-conda --python 38 --nproc=4
+	bash ./Miniconda3-latest-Linux-x86_64.sh
+		yes
+		./miniconda3
+		yes
+	conda create -n Cenv
+	conda activate Cenv
+	conda install -c schrodinger pymol -y
+	conda install -c conda-forge cctbx tqdm keras tensorflow -y
+	conda install -c anaconda numpy scipy biopython pandas scikit-learn h5py -y
+	conda install -c open3d-admin open3d -y
+	'''
+	os.system('sudo ln -s /usr/bin/python3 /usr/bin/python')
+	os.system('sudo apt install dssp libglu1-mesa-dev freeglut3-dev mesa-common-dev scons build-essential')
+	version = sys.version_info
+	V = str(version[0])+str(version[1])
+	url = 'https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py'
+	os.mkdir('CCTBX')
+	os.chdir('./CCTBX')
+	urllib.request.urlretrieve(url, 'bootstrap.py')
+	os.system('python bootstrap.py --use-conda --python {} --nproc=1'.format(V))
+	stdout = subprocess.Popen(
+		'bash ./Miniconda3-latest-Linux-x86_64.sh',
+		stdin=subprocess.PIPE,
+		stdout=subprocess.PIPE,
+		shell=True).communicate(b'\nyes\n./miniconda3\nyes\n')
+	stdout = subprocess.Popen(
+		'./mc3/bin/conda create -n Cenv -c cctbx-dev -c conda-forge cctbx python={}'.format(V),
+		stdin=subprocess.PIPE,
+		stdout=subprocess.PIPE,
+		shell=True).communicate(b'y\n')
+	os.chdir('./mc3/bin/')
+	os.system('./conda init bash')
+	os.system('conda activate Cenv')
+	os.system('conda install -c schrodinger pymol -y')
+	os.system('conda install tqdm biopython h5py scipy pandas==1.0.5 scikit-learn==0.23.1 numpy==1.16.6 tensorflow==2.2.0 keras==2.3.1 -y')
+	os.system('conda install -c open3d-admin open3d -y')
 
 class Dataset():
 	'''
@@ -722,7 +773,9 @@ class DataGenerator(keras.utils.Sequence):
 			return(Coord, Phase, Space, UnitC, I)
 
 def main():
-	if  args.Dataset:
+	if  args.Setup:
+		setup()
+	elif  args.Dataset:
 		D = Dataset()
 		D.run(IDs=sys.argv[2])
 	elif args.Vectorise:
