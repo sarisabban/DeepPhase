@@ -2,9 +2,13 @@ import os
 import sys
 import h5py
 import tqdm
+import math
+import keras
 import random
+import urllib
 import Bio.PDB
 import argparse
+import statistics
 import numpy as np
 import open3d as o3d
 import urllib.request
@@ -17,6 +21,7 @@ parser.add_argument('-V', '--Vectorise', nargs='+', help='Vectorise the datset o
 parser.add_argument('-S', '--Serialise', nargs='+', help='Vectorise and serialise the datset')
 parser.add_argument('-A', '--Augment',   nargs='+', help='Augment a .pdb file to different orientations and generate reflection data')
 parser.add_argument('-X', '--Voxelise',  nargs='+', help='Voxelise the points of in a .csv file')
+parser.add_argument('-G', '--Generator', nargs='+', help='Generate batches of data and push them through the network on the fly')
 args = parser.parse_args()
 
 class Dataset():
@@ -283,20 +288,6 @@ class Dataset():
 						F.write(example + '\n')
 						size.append(len(X))
 					os.remove(Pfilename)
-#			h1 = 'PDB_ID,Class,Space_Group,'
-#			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
-#			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
-#			h4 = ',X,Y,Z,Resolution,E-value,Phase'
-#			head = h1 + h2 + h3 + h4
-#			for i in range(1, max(size)+1):
-#				head.append(',X_{},Y_{},Z_{},Resolution_{},E-value_{},Phase_{}'\
-#				.format(i, i, i, i, i, i))
-#			head = ''.join(head)
-#		with open('CrystalDataset.csv', 'w') as f:
-#			with open('temp', 'r') as t:
-#				f.write(head + '\n')
-#				for line in t: f.write(line)
-#		os.remove('temp')
 
 def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
 	fp=np.float32, ip=np.int32):
@@ -500,6 +491,236 @@ def Voxel(filename='Gen.csv', show=False):
 				o3d.visualization.draw_geometries([xyz_centers])
 				os.remove('Centers.xyz')
 
+class DataGenerator(keras.utils.Sequence):
+	''' Data generator for the dataset '''
+	def __init__(self, filename='CrystalDataset.csv', batch_size=8,
+				Set='train', Type='Class', points=10):
+		''' Initialization '''
+		values = self.discover(filename)
+		m     = values[0]
+		meanX = values[1]
+		meanY = values[2]
+		meanZ = values[3]
+		meanR = values[4]
+		meanE = values[5]
+		sdevX = values[6]
+		sdevY = values[7]
+		sdevZ = values[8]
+		sdevR = values[9]
+		sdevE = values[10]
+		train = values[11]
+		valid = values[12]
+		pts   = points
+		if Set == 'train':
+			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
+				filename=filename, max_size=pts, Type='Class', index=train, m=m,
+				meanX=meanX, meanY=meanY, meanZ=meanZ, meanR=meanR, meanE=meanE,
+				sdevX=sdevX, sdevY=sdevY, sdevZ=sdevZ, sdevR=sdevR, sdevE=sdevE)
+		elif Set == 'valid':
+			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
+				filename=filename, max_size=pts, Type='Class', index=valid, m=m,
+				meanX=meanX, meanY=meanY, meanZ=meanZ, meanR=meanR, meanE=meanE,
+				sdevX=sdevX, sdevY=sdevY, sdevZ=sdevZ, sdevR=sdevR, sdevE=sdevE)
+		else: print("[+] Set type string incorrect, choose 'train' or 'valid'")
+		self.batch_size = batch_size
+		self.example_indexes = np.arange(len(self.X))
+		number_of_batches = len(self.example_indexes)/self.batch_size
+		self.number_of_batches = int(np.floor(number_of_batches))
+		self.on_epoch_end()
+	def on_epoch_end(self):
+		''' Shuffle at end of epoch '''
+		np.random.shuffle(self.example_indexes)
+	def __len__(self):
+		''' Denotes the number of batches per epoch '''
+		return int(np.floor(len(self.X) / self.batch_size))
+	def __getitem__(self, index):
+		''' Generate one batch of data '''
+		batch_indexes = self.example_indexes[index*self.batch_size:\
+													(index+1)*self.batch_size]
+		batch_x = np.array([self.X[k] for k in batch_indexes])
+		batch_y = np.array([self.Y[k] for k in batch_indexes])
+		return batch_x, batch_y
+	def discover(self, filename):
+		''' Discover dataset parameters '''
+		X_mean, Y_mean, Z_mean, R_mean, E_mean = [], [], [], [], []
+		X_len, Y_len, Z_len, R_len, E_len = [], [], [], [], []
+		X_SD, Y_SD, Z_SD, R_SD, E_SD = [], [], [], [], []
+		m = 0
+		head = False
+		with open(filename) as f:
+			# 1. Check and skip header line
+			if f.readline(6) == 'PDB_ID':
+				head = True
+				next(f)
+			for line in f:
+				# 2. Get data points
+				line = line.strip().split(',')
+				T = line[9:]
+				X = [float(x) for x in T[0::6]]
+				Y = [float(y) for y in T[1::6]]
+				Z = [float(z) for z in T[2::6]]
+				R = [float(r) for r in T[3::6]]
+				E = [float(e) for e in T[4::6]]
+				# 3. Find mean of each example
+				X_mean.append(statistics.mean(X))
+				Y_mean.append(statistics.mean(Y))
+				Z_mean.append(statistics.mean(Z))
+				R_mean.append(statistics.mean(R))
+				E_mean.append(statistics.mean(E))
+				# 4. Find standard deviation of each example
+				X_SD.append(statistics.stdev(X))
+				Y_SD.append(statistics.stdev(Y))
+				Z_SD.append(statistics.stdev(Z))
+				R_SD.append(statistics.stdev(R))
+				E_SD.append(statistics.stdev(E))
+				# 5. Find length of each example
+				X_len.append(len(X))
+				Y_len.append(len(Y))
+				Z_len.append(len(Z))
+				R_len.append(len(R))
+				E_len.append(len(E))
+				# 6. Count number of examples m
+				m += 1
+		# 7. Calculate fina dataset mean
+		meanX = sum([X_mean[i]*X_len[i] for i in range(m)])/sum(X_len)
+		meanY = sum([Y_mean[i]*Y_len[i] for i in range(m)])/sum(Y_len)
+		meanZ = sum([Z_mean[i]*Z_len[i] for i in range(m)])/sum(Z_len)
+		meanR = sum([R_mean[i]*R_len[i] for i in range(m)])/sum(R_len)
+		meanE = sum([E_mean[i]*E_len[i] for i in range(m)])/sum(E_len)
+		# 8. Calculate final dataset standard deviation
+		listX = [X_SD[i]**2*(X_len[i]-1) + (X_mean[i]-meanX)*X_mean[i]*X_len[i]\
+															for i in range(m)]
+		listY = [Y_SD[i]**2*(Y_len[i]-1) + (Y_mean[i]-meanY)*Y_mean[i]*Y_len[i]\
+															for i in range(m)]
+		listZ = [Z_SD[i]**2*(Z_len[i]-1) + (Z_mean[i]-meanZ)*Z_mean[i]*Z_len[i]\
+															for i in range(m)]
+		listR = [R_SD[i]**2*(R_len[i]-1) + (R_mean[i]-meanR)*R_mean[i]*R_len[i]\
+															for i in range(m)]
+		listE = [E_SD[i]**2*(E_len[i]-1) + (E_mean[i]-meanE)*E_mean[i]*E_len[i]\
+															for i in range(m)]
+		sdevX = math.sqrt(sum(listX)/(sum(X_len) - 1))
+		sdevY = math.sqrt(sum(listY)/(sum(Y_len) - 1))
+		sdevZ = math.sqrt(sum(listZ)/(sum(Z_len) - 1))
+		sdevR = math.sqrt(sum(listR)/(sum(R_len) - 1))
+		sdevE = math.sqrt(sum(listE)/(sum(E_len) - 1))
+		# 9. Generate indexes of lines (exmaples)
+		index = [x for x in range(m)]
+		# 10. If there is a dataset file has header remove first line index
+		if head == True: index = index[1:]
+		# 11. shuffle line (example) indexes
+		random.shuffle(index)
+		# 12. Slice off train set
+		train = index[:math.ceil((m*80)/100)]
+		# 13. Slice off validation set
+		valid = index[-1*math.floor((m*20)/100):]
+		return(	m, meanX, meanY, meanZ, meanR, meanE,
+				sdevX, sdevY, sdevZ, sdevR, sdevE,
+				train, valid)
+	def Vectorise(self, filename='CrystalDataset.csv', max_size='15000',
+		Type='DeepClass', fp=np.float32, ip=np.int32, index=[1, 2, 3], m=None,
+		meanX=None, meanY=None, meanZ=None, meanR=None, meanE=None,
+		sdevX=None, sdevY=None, sdevZ=None, sdevR=None, sdevE=None):
+		''' This function randomly samples points from each example '''
+		I = np.array([])
+		L = np.array([])
+		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+		max_size = int(max_size)
+		with open(filename, 'r') as f:
+			for pos, line in enumerate(f):
+				if pos in index:
+					line = line.strip().split(',')
+					# 1. Isolate PDB IDs and labels
+					I = np.append(I, np.array(str(line[0]), dtype=str))
+					L = np.append(L, np.array(str(line[1]), dtype=str))
+					S.append(np.array(int(line[2]), dtype=ip))
+					UCe.append(np.array([float(i) for i in line[3:6]],dtype=fp))
+					UCa.append(np.array([float(i) for i in line[6:9]],dtype=fp))
+					# 2. Isolate points
+					T = line[9:]
+					T = [float(i) for i in T]
+					# 3. Collect each point values
+					NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
+						in zip(T[0::6],T[1::6],T[2::6],T[3::6],T[4::6],T[5::6])]
+					# 4. Random sampling of points
+					T = [random.choice(NC) for x in range(max_size)]
+					assert len(T) == max_size, 'Max number of points incorrect'
+					T = [i for sub in T for i in sub]
+					# 5. Export points
+					X.append(np.array(T[0::6], dtype=fp))
+					Y.append(np.array(T[1::6], dtype=fp))
+					Z.append(np.array(T[2::6], dtype=fp))
+					R.append(np.array(T[3::6], dtype=fp))
+					E.append(np.array(T[4::6], dtype=fp))
+					P.append(np.array(T[5::6], dtype=fp))
+		# 6. Build arrays
+		I   = np.array(I)
+		S   = np.array(S)
+		UCe = np.array(UCe)
+		UCa = np.array(UCa)
+		X   = np.array(X)
+		Y   = np.array(Y)
+		Z   = np.array(Z)
+		R   = np.array(R)
+		E   = np.array(E)
+		P   = np.array(P)
+		if Type == 'class' or Type == 'Class':
+			# 7. One-Hot encoding and normalisation
+			''' Y labels '''
+			L[L=='Helix'] = 0
+			L[L=='Sheet'] = 1
+			Class = L.astype(np.int)
+			''' X features '''
+			categories = [sorted([x for x in range(1, 230+1)])]
+			S = S.reshape(-1, 1)
+			onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+			S = onehot_encoder.fit_transform(S) #One-hot encode[Space Groups]
+			UCe = (UCe-np.mean(UCe))/np.std(UCe)#Standardise   [Unit Cell Edges]
+			UCa = (UCa-np.mean(UCa))/np.std(UCa)#Standardise   [Unit Cell Angle]
+			X = (X-meanX)/sdevX                 #Standardise    [X Coordinates]
+			Y = (Y-meanY)/sdevY                 #Standardise    [Y Coordinates]
+			Z = (Z-meanZ)/sdevZ                 #Standardise    [Z Coordinates]
+			R = (R-meanR)/sdevR                 #Standardise    [Resolution]
+			E = (E-meanE)/sdevE                 #Standardise    [E-value]
+			# 8. Construct tensors
+			Space = S
+			UnitC = np.concatenate([UCe, UCa], axis=1)
+			Coord = np.array([X, Y, Z, R, E])
+			Coord = np.swapaxes(Coord, 0, 2)
+			Coord = np.swapaxes(Coord, 0, 1)
+			S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+			# 9. Shuffle examples
+			Coord, Class, UnitC, Space, I = shuffle(Coord,Class,UnitC,Space,I)
+			return(Coord, Class, Space, UnitC, I)
+		elif Type == 'phase' or Type == 'Phase':
+			# 7. One-Hot encoding and normalisation
+			''' Y labels '''
+			MIN, MAX, BIN = -4, 4, 8 # 8 bins for range -4 to 4
+			bins = np.array([MIN+i*((MAX-MIN)/BIN) for i in range(BIN+1)][1:-1])
+			P = np.digitize(P, bins)
+			Phase = np.eye(BIN)[P] # One-hot encode the bins
+			''' X features '''
+			categories = [sorted([x for x in range(1, 230+1)])]
+			S = S.reshape(-1, 1)
+			onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+			S = onehot_encoder.fit_transform(S) #One-hot encode[Space Groups]
+			UCe = (UCe-np.mean(UCe))/np.std(UCe)#Standardise   [Unit Cell Edges]
+			UCa = (UCa-np.mean(UCa))/np.std(UCa)#Standardise   [Unit Cell Angle]
+			X = (X-meanX)/sdevX                 #Standardise   [X Coordinates]
+			Y = (Y-meanY)/sdevY                 #Standardise   [Y Coordinates]
+			Z = (Z-meanZ)/sdevZ                 #Standardise   [Z Coordinates]
+			R = (R-meanR)/sdevR                 #Standardise   [Resolution]
+			E = (E-meanE)/sdevE                 #Standardise   [E-value]
+			# 8. Construct tensors
+			Space = S
+			UnitC = np.concatenate([UCe, UCa], axis=1)
+			Coord = np.array([X, Y, Z, R, E])
+			Coord = np.swapaxes(Coord, 0, 2)
+			Coord = np.swapaxes(Coord, 0, 1)
+			S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+			# 9. Shuffle examples
+			Coord, Phase, UnitC, Space, I = shuffle(Coord,Phase,UnitC,Space,I)
+			return(Coord, Phase, Space, UnitC, I)
+
 def main():
 	if  args.Dataset:
 		D = Dataset()
@@ -517,9 +738,6 @@ def main():
 		I = [n.encode('ascii', 'ignore') for n in I]
 		with h5py.File('X.h5','w') as x:dset=x.create_dataset('default',data=X)
 		with h5py.File('Y.h5','w') as y:dset=y.create_dataset('default',data=Y)
-		#with h5py.File('S.h5','w') as s:dset=s.create_dataset('default',data=S)
-		#with h5py.File('U.h5','w') as u:dset=u.create_dataset('default',data=U)
-		#with h5py.File('I.h5','w') as i:dset=i.create_dataset('default',data=I)
 	elif args.Augment:
 		PDB_MTZ = 'PDB'
 		d = 2.5
@@ -529,5 +747,13 @@ def main():
 		D.run()
 	elif args.Voxelise:
 		Voxel(filename=sys.argv[2], size=sys.argv[3])
+	elif args.Generator:
+		FN = sys.argv[2]
+		Type = sys.argv[3]
+		pts = sys.argv[4]
+		train = DataGenerator(filename=FN,
+							batch_size=32, Set='train', Type=Type, points=pts)
+		valid = DataGenerator(filename=FN,
+							batch_size=32, Set='valid', Type=Type, points=pts)
 
 if __name__ == '__main__': main()
