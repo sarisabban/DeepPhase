@@ -9,10 +9,10 @@ import urllib
 import Bio.PDB
 import argparse
 import statistics
-import subprocess
 import numpy as np
 import open3d as o3d
 import urllib.request
+from multiprocessing import Pool
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
@@ -804,9 +804,8 @@ def main():
 		FN = sys.argv[2]
 		Type = sys.argv[3]
 		pts = sys.argv[4]
-		train = DataGenerator(filename=FN,
-							batch_size=32, Set='train', Type=Type, points=pts)
-		valid = DataGenerator(filename=FN,
-							batch_size=32, Set='valid', Type=Type, points=pts)
+		with Pool(2) as p:
+			train, valid = p.starmap(DataGenerator,\
+			[(FN, 32, 'train', Type, pts), (FN, 2, 'valid', Type, pts)])
 
 if __name__ == '__main__': main()
