@@ -806,6 +806,6 @@ def main():
 		pts = sys.argv[4]
 		with Pool(2) as p:
 			train, valid = p.starmap(DataGenerator,\
-			[(FN, 32, 'train', Type, pts), (FN, 2, 'valid', Type, pts)])
+			[(FN, 32, 'train', Type, pts), (FN, 32, 'valid', Type, pts)])
 
 if __name__ == '__main__': main()
