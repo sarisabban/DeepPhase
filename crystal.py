@@ -543,44 +543,51 @@ def Voxel(filename='Gen.csv', show=False):
 				os.remove('Centers.xyz')
 
 class DataGenerator(keras.utils.Sequence):
-	''' Data generator for the dataset '''
 	def __init__(self, filename='CrystalDataset.csv', batch_size=8,
 				Set='train', Type='Class', points=10):
 		''' Initialization '''
-		values = self.discover(filename)
-		m     = values[0]
-		meanX = values[1]
-		meanY = values[2]
-		meanZ = values[3]
-		meanR = values[4]
-		meanE = values[5]
-		sdevX = values[6]
-		sdevY = values[7]
-		sdevZ = values[8]
-		sdevR = values[9]
-		sdevE = values[10]
-		train = values[11]
-		valid = values[12]
-		pts   = points
-		if Set == 'train':
-			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
-				filename=filename, max_size=pts, Type='Class', index=train, m=m,
-				meanX=meanX, meanY=meanY, meanZ=meanZ, meanR=meanR, meanE=meanE,
-				sdevX=sdevX, sdevY=sdevY, sdevZ=sdevZ, sdevR=sdevR, sdevE=sdevE)
-		elif Set == 'valid':
-			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
-				filename=filename, max_size=pts, Type='Class', index=valid, m=m,
-				meanX=meanX, meanY=meanY, meanZ=meanZ, meanR=meanR, meanE=meanE,
-				sdevX=sdevX, sdevY=sdevY, sdevZ=sdevZ, sdevR=sdevR, sdevE=sdevE)
-		else: print("[+] Set type string incorrect, choose 'train' or 'valid'")
+		self.filename   = filename
+		self.Set        = Set
+		self.pts        = points
+		values          = self.discover(self.filename)
+		self.m          = values[0]
+		self.meanX      = values[1]
+		self.meanY      = values[2]
+		self.meanZ      = values[3]
+		self.meanR      = values[4]
+		self.meanE      = values[5]
+		self.sdevX      = values[6]
+		self.sdevY      = values[7]
+		self.sdevZ      = values[8]
+		self.sdevR      = values[9]
+		self.sdevE      = values[10]
+		self.train      = values[11]
+		self.valid      = values[12]
 		self.batch_size = batch_size
-		self.example_indexes = np.arange(len(self.X))
-		number_of_batches = len(self.example_indexes)/self.batch_size
-		self.number_of_batches = int(np.floor(number_of_batches))
 		self.on_epoch_end()
 	def on_epoch_end(self):
 		''' Shuffle at end of epoch '''
-		np.random.shuffle(self.example_indexes)
+		if self.Set == 'train':
+			self.example_indexes = np.arange(len(self.train))
+			number_of_batches = len(self.example_indexes)/self.batch_size
+			self.number_of_batches = int(np.floor(number_of_batches))
+			np.random.shuffle(self.example_indexes)
+			random.shuffle(self.train)
+			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
+				filename=self.filename, max_size=self.pts, Type='Class', index=self.train, m=self.m,
+				meanX=self.meanX, meanY=self.meanY, meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
+				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ, sdevR=self.sdevR, sdevE=self.sdevE)
+		elif self.Set == 'valid':
+			self.example_indexes = np.arange(len(self.valid))
+			number_of_batches = len(self.example_indexes)/self.batch_size
+			self.number_of_batches = int(np.floor(number_of_batches))
+			np.random.shuffle(self.example_indexes)
+			random.shuffle(self.valid)
+			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
+				filename=self.filename, max_size=self.pts, Type='Class', index=self.valid, m=self.m,
+				meanX=self.meanX, meanY=self.meanY, meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
+				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ, sdevR=self.sdevR, sdevE=self.sdevE)
+		else: print("[+] Set type string incorrect, choose 'train' or 'valid'")
 	def __len__(self):
 		''' Denotes the number of batches per epoch '''
 		return int(np.floor(len(self.X) / self.batch_size))
