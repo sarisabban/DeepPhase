@@ -597,7 +597,7 @@ class DataGenerator(keras.utils.Sequence):
 													(index+1)*self.batch_size]
 		batch_x = np.array([self.X[k] for k in batch_indexes])
 		batch_y = np.array([self.Y[k] for k in batch_indexes])
-		return batch_x, batch_y
+		return(batch_x, batch_y)
 	def discover(self, filename):
 		''' Discover dataset parameters '''
 		X_mean, Y_mean, Z_mean, R_mean, E_mean = [], [], [], [], []
@@ -671,7 +671,7 @@ class DataGenerator(keras.utils.Sequence):
 		train = index[:math.ceil((m*80)/100)]
 		# 13. Slice off validation set
 		valid = index[-1*math.floor((m*20)/100):]
-		return(	m, meanX, meanY, meanZ, meanR, meanE,
+		return(m, meanX, meanY, meanZ, meanR, meanE,
 				sdevX, sdevY, sdevZ, sdevR, sdevE,
 				train, valid)
 	def Vectorise(self, filename='CrystalDataset.csv', max_size='15000',
