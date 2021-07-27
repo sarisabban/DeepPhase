@@ -542,14 +542,91 @@ def Voxel(filename='Gen.csv', show=False):
 				o3d.visualization.draw_geometries([xyz_centers])
 				os.remove('Centers.xyz')
 
+def discover(filename):
+	''' Discover dataset parameters '''
+	X_mean, Y_mean, Z_mean, R_mean, E_mean = [], [], [], [], []
+	X_len, Y_len, Z_len, R_len, E_len = [], [], [], [], []
+	X_SD, Y_SD, Z_SD, R_SD, E_SD = [], [], [], [], []
+	m = 0
+	head = False
+	with open(filename) as f:
+		# 1. Check and skip header line
+		if f.readline(6) == 'PDB_ID':
+			head = True
+			next(f)
+		for line in f:
+			# 2. Get data points
+			line = line.strip().split(',')
+			T = line[9:]
+			X = [float(x) for x in T[0::6]]
+			Y = [float(y) for y in T[1::6]]
+			Z = [float(z) for z in T[2::6]]
+			R = [float(r) for r in T[3::6]]
+			E = [float(e) for e in T[4::6]]
+			# 3. Find mean of each example
+			X_mean.append(statistics.mean(X))
+			Y_mean.append(statistics.mean(Y))
+			Z_mean.append(statistics.mean(Z))
+			R_mean.append(statistics.mean(R))
+			E_mean.append(statistics.mean(E))
+			# 4. Find standard deviation of each example
+			X_SD.append(statistics.stdev(X))
+			Y_SD.append(statistics.stdev(Y))
+			Z_SD.append(statistics.stdev(Z))
+			R_SD.append(statistics.stdev(R))
+			E_SD.append(statistics.stdev(E))
+			# 5. Find length of each example
+			X_len.append(len(X))
+			Y_len.append(len(Y))
+			Z_len.append(len(Z))
+			R_len.append(len(R))
+			E_len.append(len(E))
+			# 6. Count m number of examples
+			m += 1
+	# 7. Calculate fina dataset mean
+	meanX = sum([X_mean[i]*X_len[i] for i in range(m)])/sum(X_len)
+	meanY = sum([Y_mean[i]*Y_len[i] for i in range(m)])/sum(Y_len)
+	meanZ = sum([Z_mean[i]*Z_len[i] for i in range(m)])/sum(Z_len)
+	meanR = sum([R_mean[i]*R_len[i] for i in range(m)])/sum(R_len)
+	meanE = sum([E_mean[i]*E_len[i] for i in range(m)])/sum(E_len)
+	# 8. Calculate final dataset standard deviation
+	listX = [X_SD[i]**2*(X_len[i]-1) + (X_mean[i]-meanX)*X_mean[i]*X_len[i]\
+		for i in range(m)]
+	listY = [Y_SD[i]**2*(Y_len[i]-1) + (Y_mean[i]-meanY)*Y_mean[i]*Y_len[i]\
+		for i in range(m)]
+	listZ = [Z_SD[i]**2*(Z_len[i]-1) + (Z_mean[i]-meanZ)*Z_mean[i]*Z_len[i]\
+		for i in range(m)]
+	listR = [R_SD[i]**2*(R_len[i]-1) + (R_mean[i]-meanR)*R_mean[i]*R_len[i]\
+		for i in range(m)]
+	listE = [E_SD[i]**2*(E_len[i]-1) + (E_mean[i]-meanE)*E_mean[i]*E_len[i]\
+		for i in range(m)]
+	sdevX = math.sqrt(sum(listX)/(sum(X_len) - 1))
+	sdevY = math.sqrt(sum(listY)/(sum(Y_len) - 1))
+	sdevZ = math.sqrt(sum(listZ)/(sum(Z_len) - 1))
+	sdevR = math.sqrt(sum(listR)/(sum(R_len) - 1))
+	sdevE = math.sqrt(sum(listE)/(sum(E_len) - 1))
+	# 9. Generate indexes of lines (examples)
+	index = [x for x in range(m)]
+	# 10. If there is a dataset file with a header remove first line's index
+	if head == True: index = index[1:]
+	# 11. Shuffle line (example) indexes
+	random.shuffle(index)
+	# 12. Slice off train set
+	train = index[:math.ceil((m*80)/100)]
+	# 13. Slice off validation set
+	valid = index[-1*math.floor((m*20)/100):]
+	return(	m,
+			meanX, meanY, meanZ, meanR, meanE,
+			sdevX, sdevY, sdevZ, sdevR, sdevE,
+			train, valid)
+
 class DataGenerator(keras.utils.Sequence):
 	def __init__(self, filename='CrystalDataset.csv', batch_size=8,
-				Set='train', Type='Class', points=10):
+				Set='train', Type='Class', points=10, values=None):
 		''' Initialization '''
 		self.filename   = filename
 		self.Set        = Set
 		self.pts        = points
-		values          = self.discover(self.filename)
 		self.m          = values[0]
 		self.meanX      = values[1]
 		self.meanY      = values[2]
@@ -574,9 +651,11 @@ class DataGenerator(keras.utils.Sequence):
 			np.random.shuffle(self.example_indexes)
 			random.shuffle(self.train)
 			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
-				filename=self.filename, max_size=self.pts, Type='Class', index=self.train, m=self.m,
-				meanX=self.meanX, meanY=self.meanY, meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
-				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ, sdevR=self.sdevR, sdevE=self.sdevE)
+				filename=self.filename, max_size=self.pts, Type='Class',
+				index=self.train, m=self.m, meanX=self.meanX, meanY=self.meanY,
+				meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
+				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ,
+				sdevR=self.sdevR, sdevE=self.sdevE)
 		elif self.Set == 'valid':
 			self.example_indexes = np.arange(len(self.valid))
 			number_of_batches = len(self.example_indexes)/self.batch_size
@@ -584,9 +663,11 @@ class DataGenerator(keras.utils.Sequence):
 			np.random.shuffle(self.example_indexes)
 			random.shuffle(self.valid)
 			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
-				filename=self.filename, max_size=self.pts, Type='Class', index=self.valid, m=self.m,
-				meanX=self.meanX, meanY=self.meanY, meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
-				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ, sdevR=self.sdevR, sdevE=self.sdevE)
+				filename=self.filename, max_size=self.pts, Type='Class',
+				index=self.valid, m=self.m, meanX=self.meanX, meanY=self.meanY,
+				meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
+				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ,
+				sdevR=self.sdevR, sdevE=self.sdevE)
 		else: print("[+] Set type string incorrect, choose 'train' or 'valid'")
 	def __len__(self):
 		''' Denotes the number of batches per epoch '''
@@ -594,86 +675,10 @@ class DataGenerator(keras.utils.Sequence):
 	def __getitem__(self, index):
 		''' Generate one batch of data '''
 		batch_indexes = self.example_indexes[index*self.batch_size:\
-													(index+1)*self.batch_size]
+			(index+1)*self.batch_size]
 		batch_x = np.array([self.X[k] for k in batch_indexes])
 		batch_y = np.array([self.Y[k] for k in batch_indexes])
-		return(batch_x, batch_y)
-	def discover(self, filename):
-		''' Discover dataset parameters '''
-		X_mean, Y_mean, Z_mean, R_mean, E_mean = [], [], [], [], []
-		X_len, Y_len, Z_len, R_len, E_len = [], [], [], [], []
-		X_SD, Y_SD, Z_SD, R_SD, E_SD = [], [], [], [], []
-		m = 0
-		head = False
-		with open(filename) as f:
-			# 1. Check and skip header line
-			if f.readline(6) == 'PDB_ID':
-				head = True
-				next(f)
-			for line in f:
-				# 2. Get data points
-				line = line.strip().split(',')
-				T = line[9:]
-				X = [float(x) for x in T[0::6]]
-				Y = [float(y) for y in T[1::6]]
-				Z = [float(z) for z in T[2::6]]
-				R = [float(r) for r in T[3::6]]
-				E = [float(e) for e in T[4::6]]
-				# 3. Find mean of each example
-				X_mean.append(statistics.mean(X))
-				Y_mean.append(statistics.mean(Y))
-				Z_mean.append(statistics.mean(Z))
-				R_mean.append(statistics.mean(R))
-				E_mean.append(statistics.mean(E))
-				# 4. Find standard deviation of each example
-				X_SD.append(statistics.stdev(X))
-				Y_SD.append(statistics.stdev(Y))
-				Z_SD.append(statistics.stdev(Z))
-				R_SD.append(statistics.stdev(R))
-				E_SD.append(statistics.stdev(E))
-				# 5. Find length of each example
-				X_len.append(len(X))
-				Y_len.append(len(Y))
-				Z_len.append(len(Z))
-				R_len.append(len(R))
-				E_len.append(len(E))
-				# 6. Count number of examples m
-				m += 1
-		# 7. Calculate fina dataset mean
-		meanX = sum([X_mean[i]*X_len[i] for i in range(m)])/sum(X_len)
-		meanY = sum([Y_mean[i]*Y_len[i] for i in range(m)])/sum(Y_len)
-		meanZ = sum([Z_mean[i]*Z_len[i] for i in range(m)])/sum(Z_len)
-		meanR = sum([R_mean[i]*R_len[i] for i in range(m)])/sum(R_len)
-		meanE = sum([E_mean[i]*E_len[i] for i in range(m)])/sum(E_len)
-		# 8. Calculate final dataset standard deviation
-		listX = [X_SD[i]**2*(X_len[i]-1) + (X_mean[i]-meanX)*X_mean[i]*X_len[i]\
-															for i in range(m)]
-		listY = [Y_SD[i]**2*(Y_len[i]-1) + (Y_mean[i]-meanY)*Y_mean[i]*Y_len[i]\
-															for i in range(m)]
-		listZ = [Z_SD[i]**2*(Z_len[i]-1) + (Z_mean[i]-meanZ)*Z_mean[i]*Z_len[i]\
-															for i in range(m)]
-		listR = [R_SD[i]**2*(R_len[i]-1) + (R_mean[i]-meanR)*R_mean[i]*R_len[i]\
-															for i in range(m)]
-		listE = [E_SD[i]**2*(E_len[i]-1) + (E_mean[i]-meanE)*E_mean[i]*E_len[i]\
-															for i in range(m)]
-		sdevX = math.sqrt(sum(listX)/(sum(X_len) - 1))
-		sdevY = math.sqrt(sum(listY)/(sum(Y_len) - 1))
-		sdevZ = math.sqrt(sum(listZ)/(sum(Z_len) - 1))
-		sdevR = math.sqrt(sum(listR)/(sum(R_len) - 1))
-		sdevE = math.sqrt(sum(listE)/(sum(E_len) - 1))
-		# 9. Generate indexes of lines (exmaples)
-		index = [x for x in range(m)]
-		# 10. If there is a dataset file has header remove first line index
-		if head == True: index = index[1:]
-		# 11. shuffle line (example) indexes
-		random.shuffle(index)
-		# 12. Slice off train set
-		train = index[:math.ceil((m*80)/100)]
-		# 13. Slice off validation set
-		valid = index[-1*math.floor((m*20)/100):]
-		return(m, meanX, meanY, meanZ, meanR, meanE,
-				sdevX, sdevY, sdevZ, sdevR, sdevE,
-				train, valid)
+		return batch_x, batch_y
 	def Vectorise(self, filename='CrystalDataset.csv', max_size='15000',
 		Type='DeepClass', fp=np.float32, ip=np.int32, index=[1, 2, 3], m=None,
 		meanX=None, meanY=None, meanZ=None, meanR=None, meanE=None,
@@ -811,8 +816,10 @@ def main():
 		FN = sys.argv[2]
 		Type = sys.argv[3]
 		pts = sys.argv[4]
+		values = discover(FN)
 		with Pool(2) as p:
 			train, valid = p.starmap(DataGenerator,\
-			[(FN, 32, 'train', Type, pts), (FN, 32, 'valid', Type, pts)])
+			[(FN, 32, 'train', Type, pts, values),\
+			(FN, 32, 'valid', Type, pts, values)])
 
 if __name__ == '__main__': main()
