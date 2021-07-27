@@ -26,11 +26,25 @@
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
 
+
+--------------------- THIS SECTION HAS CHANGES -----------------------
+NOT USING ANY MORE !!!! CHECK !!!!!!
+
+
+
 If you want to compile a dataset of computer generated reflections from PDB files and augment each of these example then use the following command:
 
 `python crystal.py --Augment NUMBER` or `python crystal.py -A 10`
 
 Where NUMBER is the number of augments to each example.
+
+
+
+--------------------- THIS SECTION HAS CHANGES -----------------------
+Fix info about voxelisation
+Fix info about data generation
+Fix info about vectorisation
+
 
 5. Prepare dataset for training:
 For **DeepClass** (protein classification dataset):
@@ -45,9 +59,6 @@ The dataset is too large to be loaded anywhere, therefore the segmented (and vox
 For the 10K-500K, 500K-1M, and 1M+ segments it is recommended to keep NUMBER_OF_POINTS to 10000 since we found this trains best in DeepClass. The other segments use 100.
 
 If you want to serialise the vectorised the dataset then replace --Vectorise (-V) with --Serialise (-S).
-
-
-
 
 
 
