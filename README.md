@@ -38,6 +38,8 @@ If you want to compile a dataset of computer generated reflections from PDB file
 
 Where NUMBER is the number of augments to each example.
 
+to export the augments as .mtz files use the collosing command:
+`python crystal.py --Augment NUMBER MTZ` or `python crystal.py -A 10 MTZ`
 
 
 --------------------- THIS SECTION HAS CHANGES -----------------------
