@@ -143,7 +143,7 @@ class Dataset():
 				e_val = a.quasi_normalize_structure_factors()
 				E = list(e_val.expand_to_p1().f_sq_as_f().data())
 		return(S, C, X, Y, Z, R, E, P)
-	def Ref_PDB(self, pdbstr):
+	def Ref_PDB(self, pdbstr, export_mtz=False):
 		'''
 		Generate Space group, Unit Cell, X, Y, Z, Resolution,
 		E-value, and Phase from .pdb files. More info can be
@@ -182,6 +182,11 @@ class Dataset():
 			X.append(round(x, 5))
 			Y.append(round(y, 5))
 			Z.append(round(z, 5))
+		# Export as .mtz file
+		if export_mtz == True:
+			mtz_dataset = a.as_mtz_dataset(column_root_label='FC')
+			mtz_object = mtz_dataset.mtz_object()
+			mtz_object.write(file_name='temp.mtz')
 		return(S, C, X, Y, Z, R, E, P)
 	def Augment(self, filename):
 		''' Augment a .pdb file's molecular position and unit cell '''
@@ -257,11 +262,11 @@ class Dataset():
 		S_frac = S/len(SS)
 		L_frac = L/len(SS)
 		return(H_frac, S_frac, L_frac)
-	def run(self, IDs='IDs.txt'):
+	def run(self, IDs='IDs.txt', EXP_MTZ=False):
 		with open('CrystalDataset.csv', 'a') as F:
-			h1 = 'PDB_ID,Class,Space_Group,'
-			h2 = 'Unit-Cell_a,Unit-Cell_b,Unit-Cell_c,'
-			h3 = 'Unit-Cell_Alpha,Unit-Cell_Beta,Unit-Cell_Gamma'
+			h1 = 'PDB_ID,Class,Space Group,'
+			h2 = 'Unit-Cell a,Unit-Cell b,Unit-Cell c,'
+			h3 = 'Unit-Cell Alpha,Unit-Cell Beta,Unit-Cell Gamma'
 			h4 = ',X,Y,Z,Resolution,E-value,Phase\n'
 			head = h1 + h2 + h3 + h4
 			F.write(head)
@@ -298,8 +303,16 @@ class Dataset():
 									pdbstr = self.Augment(Pfilename)
 								elif self.augment == False:
 									with open(Pfilename) as f: pdbstr = f.read()
-								try: S,C,X,Y,Z,R,E,P = self.Ref_PDB(pdbstr)
-								except: continue
+								try:
+									if EXP_MTZ == True:
+										S,C,X,Y,Z,R,E,P = self.Ref_PDB(pdbstr,
+										export_mtz=True)
+										os.rename('temp.mtz', '{}_{}.mtz'\
+										.format(Pfilename[:-4], count+1))
+									elif EXP_MTZ == False:
+										S,C,X,Y,Z,R,E,P = self.Ref_PDB(pdbstr)
+								except:
+									continue
 							except:
 								red = '\u001b[31m'
 								ret = '\u001b[0m'
@@ -311,7 +324,16 @@ class Dataset():
 							label = 'Helix'
 						elif H_frac==0.00 and S_frac>=0.50 and L_frac<=0.50:
 							label = 'Sheet'
+						elif H_frac>=S_frac and H_frac>=L_frac:
+							label = 'Mostly Helix'
+						elif S_frac>=H_frac and S_frac>=L_frac:
+							label = 'Mostly Sheet'
+						elif L_frac>=H_frac and L_frac>=S_frac:
+							label = 'Mostly Loops'
 						else:
+							ERROR = 'error in secondary structures'
+							print('\u001b[31m[-] {} Failed: {}\u001b[0m'\
+							.format(item.upper(), ERROR))
 							break
 						assert len(X)==len(Y)==len(Z)==len(R)==len(E)==len(P),\
 						'\u001b[31m[-] {} Failed: values not equal\u001b[0m'.\
@@ -809,7 +831,12 @@ def main():
 		n = int(sys.argv[2])
 		augment = True
 		D = Dataset(PDB_MTZ=PDB_MTZ, n=n, d=d, augment=augment)
-		D.run()
+		try:
+			sys.argv[3]=='MTZ'
+			D.run(EXP_MTZ=True)
+			os.remove('CrystalDataset.csv')
+		except:
+			D.run()
 	elif args.Voxelise:
 		Voxel(filename=sys.argv[2], size=sys.argv[3])
 	elif args.Generator:
