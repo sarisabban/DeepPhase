@@ -806,6 +806,174 @@ class DataGenerator(keras.utils.Sequence):
 			Coord, Phase, UnitC, Space, I = shuffle(Coord,Phase,UnitC,Space,I)
 			return(Coord, Phase, Space, UnitC, I)
 
+def Vectorise(filename='CrystalDataset.csv', max_size='1600', data='DeepClass'):
+	''' Selects points, splits sets, standerdises, then vectorises dataset '''
+	I = np.array([])
+	L = np.array([])
+	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+	max_size = int(max_size)
+	with open(filename, 'r') as f:
+		next(f)
+		for line in f:
+			line = line.strip().split(',')
+			# 1. Isolate points
+			T = line[9:]
+			T = [float(i) for i in T]
+			# 2. Collect each point values
+			NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
+				in zip(T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
+			# 3. Select only points where 2.8 < R < 3
+			NC = [point for point in NC if 2.8 <= point[3] <= 3.0]
+			# 4. Sample points at regular intervals to collect max_size
+			if len(NC) != 0 and len(NC) >= max_size:
+				T = NC[::len(NC)//max_size][:max_size]
+				# 5. Isolate PDB IDs and labels
+				I = np.append(I, np.array(str(line[0]), dtype=str))
+				L = np.append(L, np.array(str(line[1]), dtype=str))
+				S.append(np.array(int(line[2]), dtype=np.int32))
+				UCe.append(np.array([float(i) for i in line[3:6]]))
+				UCa.append(np.array([float(i) for i in line[6:9]]))
+			else: continue
+			assert len(T) == max_size, 'Max number of points incorrect'
+			T = [i for sub in T for i in sub]
+			# 6. Export points
+			X.append(np.array(T[0::6]))
+			Y.append(np.array(T[1::6]))
+			Z.append(np.array(T[2::6]))
+			R.append(np.array(T[3::6]))
+			E.append(np.array(T[4::6]))
+			P.append(np.array(T[5::6]))
+	# 7. Structure encoding
+	''' DeepClass Y labels '''
+	L[L=='Helix'] = 0
+	L[L=='Sheet'] = 1
+	L = L.astype(np.int)
+	# 8. Build arrays
+	I   = np.array(I)
+	S   = np.array(S)
+	UCe = np.array(UCe)
+	UCa = np.array(UCa)
+	X   = np.array(X)
+	Y   = np.array(Y)
+	Z   = np.array(Z)
+	R   = np.array(R)
+	E   = np.array(E)
+	P   = np.array(P)
+	# 9. Shuffle but maintain order
+	L, I, S, UCe, UCa, X, Y, Z, R, E, P = \
+	shuffle(L, I, S, UCe, UCa, X, Y, Z, R, E, P)
+	# 10. Split train/valid/tests sets
+	train_to   = math.floor((len(X)*60)/100)
+	valid_from = train_to
+	valid_to   = train_to + math.floor((len(X)*20)/100)
+	tests_from = valid_to
+	L_train = L[:train_to]
+	L_valid = L[valid_from:valid_to]
+	L_tests = L[tests_from:]
+	I_train = I[:train_to]
+	I_valid = I[valid_from:valid_to]
+	I_tests = I[tests_from:]
+	S_train = S[:train_to]
+	S_valid = S[valid_from:valid_to]
+	S_tests = S[tests_from:]
+	UCe_train = UCe[:train_to]
+	UCe_valid = UCe[valid_from:valid_to]
+	UCe_tests = UCe[tests_from:]
+	UCa_train = UCa[:train_to]
+	UCa_valid = UCa[valid_from:valid_to]
+	UCa_tests = UCa[tests_from:]
+	X_train = X[:train_to]
+	X_valid = X[valid_from:valid_to]
+	X_tests = X[tests_from:]
+	Y_train = Y[:train_to]
+	Y_valid = Y[valid_from:valid_to]
+	Y_tests = Y[tests_from:]
+	Z_train = Z[:train_to]
+	Z_valid = Z[valid_from:valid_to]
+	Z_tests = Z[tests_from:]
+	R_train = R[:train_to]
+	R_valid = R[valid_from:valid_to]
+	R_tests = R[tests_from:]
+	E_train = E[:train_to]
+	E_valid = E[valid_from:valid_to]
+	E_tests = E[tests_from:]
+	P_train = P[:train_to]
+	P_valid = P[valid_from:valid_to]
+	P_tests = P[tests_from:]
+	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+	# 11. Label and feature one-hot encoding standardisation
+	''' X features '''
+	categories = [sorted([x for x in range(1, 230+1)])]
+	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
+	S_train = S_train.reshape(-1, 1)
+	S_valid = S_valid.reshape(-1, 1)
+	S_tests = S_tests.reshape(-1, 1)
+	S_train = onehot_encoder.fit_transform(S_train)
+	S_valid = onehot_encoder.fit_transform(S_valid)
+	S_tests = onehot_encoder.fit_transform(S_tests)
+	UCe_train = (UCe_train-np.mean(UCe_train))/np.std(UCe_train)
+	UCe_valid = (UCe_valid-np.mean(UCe_valid))/np.std(UCe_valid)
+	UCe_tests = (UCe_tests-np.mean(UCe_tests))/np.std(UCe_tests)
+	UCa_train = (UCa_train-np.mean(UCa_train))/np.std(UCa_train)
+	UCa_valid = (UCa_valid-np.mean(UCa_valid))/np.std(UCa_valid)
+	UCa_tests = (UCa_tests-np.mean(UCa_tests))/np.std(UCa_tests)
+	X_train = (X_train-np.mean(X_train))/np.std(X_train)
+	X_valid = (X_valid-np.mean(X_valid))/np.std(X_valid)
+	X_tests = (X_tests-np.mean(X_tests))/np.std(X_tests)
+	Y_train = (Y_train-np.mean(Y_train))/np.std(Y_train)
+	Y_valid = (Y_valid-np.mean(Y_valid))/np.std(Y_valid)
+	Y_tests = (Y_tests-np.mean(Y_tests))/np.std(Y_tests)
+	Z_train = (Z_train-np.mean(Z_train))/np.std(Z_train)
+	Z_valid = (Z_valid-np.mean(Z_valid))/np.std(Z_valid)
+	Z_tests = (Z_tests-np.mean(Z_tests))/np.std(Z_tests)
+	R_train = (R_train-np.mean(R_train))/np.std(R_train)
+	R_valid = (R_valid-np.mean(R_valid))/np.std(R_valid)
+	R_tests = (R_tests-np.mean(R_tests))/np.std(R_tests)
+	E_train = (E_train-np.mean(E_train))/np.std(E_train)
+	E_valid = (E_valid-np.mean(E_valid))/np.std(E_valid)
+	E_tests = (E_tests-np.mean(E_tests))/np.std(E_tests)
+	''' DeepPhase Y labels '''
+	MIN, MAX, BIN = -4, 4, 8 # 8 bins for range -4 to 4
+	bins = np.array([MIN+i*((MAX-MIN)/BIN) for i in range(BIN+1)][1:-1])
+	P_train = np.digitize(P_train, bins)
+	P_valid = np.digitize(P_valid, bins)
+	P_tests = np.digitize(P_tests, bins)
+	P_train = np.eye(BIN)[P_train]
+	P_valid = np.eye(BIN)[P_valid]
+	P_tests = np.eye(BIN)[P_tests]
+	# 12. Construct tensors
+	Ident_train = I_train
+	Ident_valid = I_valid
+	Ident_tests = I_tests
+	Class_train = L_train
+	Class_valid = L_valid
+	Class_tests = L_tests
+	Space_train = S_train
+	Space_valid = S_valid
+	Space_tests = S_tests
+	UnitC_train = np.concatenate([UCe_train, UCa_train], axis=1)
+	UnitC_valid = np.concatenate([UCe_valid, UCa_valid], axis=1)
+	UnitC_tests = np.concatenate([UCe_tests, UCa_tests], axis=1)
+	Coord_train = np.array([X_train, Y_train, Z_train, R_train, E_train])
+	Coord_train = np.swapaxes(Coord_train, 0, 2)
+	Coord_train = np.swapaxes(Coord_train, 0, 1)
+	Coord_valid = np.array([X_valid, Y_valid, Z_valid, R_valid, E_valid])
+	Coord_valid = np.swapaxes(Coord_valid, 0, 2)
+	Coord_valid = np.swapaxes(Coord_valid, 0, 1)
+	Coord_tests = np.array([X_tests, Y_tests, Z_tests, R_tests, E_tests])
+	Coord_tests = np.swapaxes(Coord_tests, 0, 2)
+	Coord_tests = np.swapaxes(Coord_tests, 0, 1)
+	Phase_train = P_train
+	Phase_valid = P_valid
+	Phase_tests = P_tests
+	if data == 'DeepClass':
+		return( Coord_train, Coord_valid, Coord_tests,
+				Class_train, Class_valid, Class_tests)
+	elif data == 'DeepPhase':
+		return( Coord_train, Coord_valid, Coord_tests,
+				Phase_train, Phase_valid, Phase_tests)
+
+
 def main():
 	if  args.Setup:
 		setup()
