@@ -1010,7 +1010,7 @@ def Vectorise_last(	filename='CrystalDataset.csv',
 			# 3. Select only points where 2.8 < R < 3
 			NC = [point for point in NC if 2.8 <= point[3] <= 3.0]
 			# 4. Collect examples if they have points within R range
-			if len(NC) != 0:
+			if 10000000 >= len(NC) >= point_size:
 				T = NC
 				# 5. Isolate PDB IDs and labels
 				I = np.append(I, np.array(str(line[0]), dtype=str))
