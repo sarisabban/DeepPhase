@@ -1,4 +1,5 @@
 import math
+import h5py
 import keras
 import random
 import statistics
@@ -36,8 +37,7 @@ class DataGenerator(keras.utils.Sequence):
 		x = []
 		for example in batch_x:
 			example = example[~np.isnan(example).any(axis=1)]
-			idx = np.random.choice(len(example),\
-				size=self.feature_size, replace=False)
+			idx = np.random.choice(len(example), size=self.feature_size, replace=False)
 			example = example[idx, :]
 			x.append(example)
 		batch_x = np.array(x)
@@ -46,6 +46,7 @@ class DataGenerator(keras.utils.Sequence):
 NUM_CLASSES = 2
 NUM_POINTS  = 300
 CHANNELS    = 5
+BATCHES     = 32
 
 def conv_bn(x, filters):
     x = layers.Conv1D(filters, kernel_size=1, padding='valid')(x)
@@ -116,10 +117,17 @@ with h5py.File('Y_valid.h5', 'r') as yv: y_valid = yv['default'][()]
 with h5py.File('X_tests.h5', 'r') as xt: x_tests = xt['default'][()]
 with h5py.File('Y_tests.h5', 'r') as yt: y_tests = yt['default'][()]
 
-train = DataGenerator(x_train, y_train, 32, 300)
-valid = DataGenerator(x_valid, y_valid, 32, 300)
-tests = DataGenerator(x_tests, y_tests, 32, 300)
+print('x_train shape =', x_train.shape)
+print('y_train shape =', y_train.shape)
+print('x_valid shape =', x_valid.shape)
+print('y_valid shape =', y_valid.shape)
+print('x_tests shape =', x_tests.shape)
+print('y_tests shape =', y_tests.shape)
 
-model.fit(generator=train, validation_data=valid, epochs=200, verbose=2)
+train = DataGenerator(x_train, y_train, BATCHES, NUM_POINTS)
+valid = DataGenerator(x_valid, y_valid, BATCHES, NUM_POINTS)
+tests = DataGenerator(x_tests, y_tests, BATCHES, NUM_POINTS)
+
+model.fit_generator(generator=train, validation_data=valid, epochs=100, verbose=1)
 
 model.save_weights('weights.h5')
