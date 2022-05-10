@@ -26,24 +26,14 @@
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete and up to 1TB memory.
 
-If you want to download our dataset it will be provided here (CrystalDataset.csv ~247GB)
+If you want to download our dataset it will be provided [here]() (CrystalDataset.csv ~247GB)
 
-
-
-
-
-
-
-
-
-5. Prepare dataset for training:
+5. Serialise the dataset:
 For **DeepClass** (protein classification dataset):
 
-`python crystal.py --Serialise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -S DeepClass FILENAME.csv 10000`
+`python crystal.py --Serialise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -S DeepClass CrystalDataset.csv 300`
 
-For the 10K-500K, 500K-1M, and 1M+ segments it is recommended to keep NUMBER_OF_POINTS to 10000 since we found this trains best in DeepClass. The other segments use 100.
-
-If you want to serialise the vectorised the dataset then replace --Vectorise (-V) with --Serialise (-S).
+This command will vectorises and serialise the dataset. It will first filter and collect all points between 2.8 < Resolution < 3.0, make the train/valid/tests set splits, then standerdise each set seperatly. finally it will compile all X, Y, Z, R, E features (each point's X, Y, Z coordinates as well as its Resolution and E-value) into tensors, then export each set as a serialised file. You should end up with the following files: X_train.h5, X_valid.h5, X_tests.h5, Y_train.h5, Y_valid.h5, Y_tests.h5 at the end.
 
 
 
@@ -76,26 +66,10 @@ If you want to serialise the vectorised the dataset then replace --Vectorise (-V
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
 
-### Train Network:
-* COMPILED DATASET DOWNLOAD LINK
+#TODO:
+* UPLOAD DATASET and provide LINK
+* UPLOAD DEEPCLASS SERIALISED DATASET and provide LINK
+* UPLOAD DEEPCLASS WEIGHTS and provide LINK
+* For **DeepPhase** (reflection point phase prediction dataset):
+* Perform Prediction:
 
-* To train the neural network on the dataset use the following command:
-
-`python network.py`
-
-
-
-
-
-
-
-
-
-
-For **DeepPhase** (reflection point phase prediction dataset):
-`python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepPhase FILENAME.csv 1024`
-
-
-
-### Perform Prediction:
-* TRAINED WEIGHTS DOWNLOAD LINK
