@@ -1,26 +1,62 @@
+import math
 import h5py
 import keras
+import random
+import statistics
 import numpy as np
-import pandas as pd
-import seaborn as sn
 import tensorflow as tf
 from keras import layers
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
+from multiprocessing import Pool
+from sklearn.utils import shuffle
+from sklearn.preprocessing import OneHotEncoder
+import pickle
 
-with h5py.File('Y.hdf5'    , 'r') as yh: Y = yh['default'][()]
-with h5py.File('Coord.hdf5', 'r') as ch: Coord = ch['default'][()]
+class DataGenerator(keras.utils.Sequence):
+	def __init__(self, X, Y, batch_size, feature_size):
+		''' Initialization '''
+		self.X = X
+		self.Y = Y
+		self.feature_size = feature_size
+		self.batch_size = batch_size
+		self.on_epoch_end()
+	def on_epoch_end(self):
+		''' Shuffle at end of epoch '''
+		self.example_indexes = np.arange(len(self.X))
+		number_of_batches = len(self.example_indexes)/self.batch_size
+		self.number_of_batches = int(np.floor(number_of_batches))
+		np.random.shuffle(self.example_indexes)
+	def __len__(self):
+		''' Denotes the number of batches per epoch '''
+		return(int(np.floor(len(self.X)/self.batch_size)))
+	def __getitem__(self, index):
+		''' Generate one batch of data '''
+		batch_indexes = self.example_indexes[index*self.batch_size:\
+			(index+1)*self.batch_size]
+		batch_x = np.array([self.X[k] for k in batch_indexes])
+		batch_y = np.array([self.Y[k] for k in batch_indexes])
+		x = []
+		for example in batch_x:
+			example = example[~np.isnan(example).any(axis=1)]
+			idx = np.random.choice(len(example), size=self.feature_size, replace=False)
+			example = example[idx, :]
+			x.append(example)
+		batch_x = np.array(x)
+		return batch_x, batch_y
 
-X_train, X_tests, Y_train, Y_tests = train_test_split(Coord, Y, test_size=0.20)
-X_train, X_valid, Y_train, Y_valid = train_test_split(X_train, Y_train, test_size=0.25)
-
-print(X_train.shape, X_valid.shape, X_tests.shape)
-print(Y_train.shape, Y_valid.shape, Y_tests.shape)
-
-NUM_POINTS  = 10000
 NUM_CLASSES = 2
-CHANNELS    = X_train.shape[-1]
+NUM_POINTS  = 300
+CHANNELS    = 5
+BATCHES     = 32
+
+def conv_bn(x, filters):
+    x = layers.Conv1D(filters, kernel_size=1, padding='valid')(x)
+    x = layers.BatchNormalization(momentum=0.0)(x)
+    return layers.Activation('relu')(x)
+
+def dense_bn(x, filters):
+    x = layers.Dense(filters)(x)
+    x = layers.BatchNormalization(momentum=0.0)(x)
+    return layers.Activation('relu')(x)
 
 class OrthogonalRegularizer(keras.regularizers.Regularizer):
     def __init__(self, num_features, l2reg=0.001):
@@ -33,80 +69,35 @@ class OrthogonalRegularizer(keras.regularizers.Regularizer):
         xxt = tf.reshape(xxt, (-1, self.num_features, self.num_features))
         return tf.reduce_sum(self.l2reg * tf.square(xxt - self.eye))
 
+def tnet(inputs, num_features):
+    bias = keras.initializers.Constant(np.eye(num_features).flatten())
+    reg = OrthogonalRegularizer(num_features)
+    x = conv_bn(inputs, 32)
+    x = conv_bn(x, 64)
+    x = conv_bn(x, 512)
+    x = layers.GlobalMaxPooling1D()(x)
+    x = dense_bn(x, 256)
+    x = dense_bn(x, 128)
+    x = layers.Dense(
+        num_features * num_features,
+        kernel_initializer='zeros',
+        bias_initializer=bias,
+        activity_regularizer=reg)(x)
+    feat_T = layers.Reshape((num_features, num_features))(x)
+    return layers.Dot(axes=(2, 1))([inputs, feat_T])
+
 inputs = keras.Input(shape=(NUM_POINTS, CHANNELS))
-bias = keras.initializers.Constant(np.eye(CHANNELS).flatten())
-reg = OrthogonalRegularizer(CHANNELS)
-y = layers.Dense(32)(inputs)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(64)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(512)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.GlobalMaxPooling1D()(y)
-y = layers.Dense(256)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(128)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(
-    CHANNELS * CHANNELS,
-    kernel_initializer='zeros',
-    bias_initializer=bias,
-    activity_regularizer=reg)(y)
-feat_T = layers.Reshape((CHANNELS, CHANNELS))(y)
-x = layers.Dot(axes=(2, 1))([inputs, feat_T])
-x = layers.Dense(32)(x)
-x = layers.BatchNormalization(momentum=0.0)(x)
-x = layers.Activation('relu')(x)
-x = layers.Dense(32)(x)
-x = layers.BatchNormalization(momentum=0.0)(x)
-x = layers.Activation('relu')(x)
-bias = keras.initializers.Constant(np.eye(32).flatten())
-reg = OrthogonalRegularizer(32)
-y = layers.Dense(32)(x)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(64)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(512)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.GlobalMaxPooling1D()(y)
-y = layers.Dense(256)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(128)(y)
-y = layers.BatchNormalization(momentum=0.0)(y)
-y = layers.Activation('relu')(y)
-y = layers.Dense(
-    32 * 32,
-    kernel_initializer='zeros',
-    bias_initializer=bias,
-    activity_regularizer=reg)(y)
-feat_T = layers.Reshape((32, 32))(y)
-x = layers.Dot(axes=(2, 1))([x, feat_T])
-x = layers.Dense(32)(x)
-x = layers.BatchNormalization(momentum=0.0)(x)
-x = layers.Activation('relu')(x)
-x = layers.Dense(64)(x)
-x = layers.BatchNormalization(momentum=0.0)(x)
-x = layers.Activation('relu')(x)
-x = layers.Dense(512)(x)
-x = layers.BatchNormalization(momentum=0.0)(x)
-x = layers.Activation('relu')(x)
+x = tnet(inputs, CHANNELS)
+x = conv_bn(x, 32)
+x = conv_bn(x, 32)
+x = tnet(x, 32)
+x = conv_bn(x, 32)
+x = conv_bn(x, 64)
+x = conv_bn(x, 512)
 x = layers.GlobalMaxPooling1D()(x)
-x = layers.Dense(256)(x)
-x = layers.BatchNormalization(momentum=0.0)(x)
-x = layers.Activation('relu')(x)
+x = dense_bn(x, 256)
 x = layers.Dropout(0.3)(x)
-x = layers.Dense(128)(x)
-x = layers.BatchNormalization(momentum=0.0)(x)
-x = layers.Activation('relu')(x)
+x = dense_bn(x, 128)
 x = layers.Dropout(0.3)(x)
 outputs = layers.Dense(NUM_CLASSES, activation='softmax')(x)
 model = keras.Model(inputs=inputs, outputs=outputs, name='pointnet')
@@ -114,20 +105,29 @@ model.compile(
     loss='sparse_categorical_crossentropy',
     optimizer=keras.optimizers.Adam(learning_rate=0.001),
     metrics=['sparse_categorical_accuracy'])
-model.fit(X_train, Y_train,
-    epochs=100,
-    validation_data=(X_valid, Y_valid),
-    batch_size=32)
 
-classes = ['Alpha', 'Not_Alpha']
-evaluation = model.evaluate(X_tests, Y_tests)
-print('Test Set: Accuracy {} Loss {}'\
-.format(round(evaluation[1], 4), round(evaluation[0], 4)))
-Y_pred = model.predict(X_tests)
-y_pred = np.argmax(Y_pred, axis=1)
-matrix = confusion_matrix(Y_tests, y_pred)
-df_cm = pd.DataFrame(matrix, index=classes, columns=classes)
-plt.figure(figsize=(10, 7))
-sn.heatmap(df_cm, annot=True)
-print(classification_report(Y_tests, y_pred, target_names=classes))
+######################################################################
+
+print('[+] Testing XYZRE | Generator | 300 points | batch 32')
+
+with h5py.File('X_train.h5', 'r') as xr: x_train = xr['default'][()]
+with h5py.File('Y_train.h5', 'r') as yr: y_train = yr['default'][()]
+with h5py.File('X_valid.h5', 'r') as xv: x_valid = xv['default'][()]
+with h5py.File('Y_valid.h5', 'r') as yv: y_valid = yv['default'][()]
+with h5py.File('X_tests.h5', 'r') as xt: x_tests = xt['default'][()]
+with h5py.File('Y_tests.h5', 'r') as yt: y_tests = yt['default'][()]
+
+print('x_train shape =', x_train.shape)
+print('y_train shape =', y_train.shape)
+print('x_valid shape =', x_valid.shape)
+print('y_valid shape =', y_valid.shape)
+print('x_tests shape =', x_tests.shape)
+print('y_tests shape =', y_tests.shape)
+
+train = DataGenerator(x_train, y_train, BATCHES, NUM_POINTS)
+valid = DataGenerator(x_valid, y_valid, BATCHES, NUM_POINTS)
+tests = DataGenerator(x_tests, y_tests, BATCHES, NUM_POINTS)
+
+model.fit_generator(generator=train, validation_data=valid, epochs=100, verbose=1)
+
 model.save_weights('weights.h5')
