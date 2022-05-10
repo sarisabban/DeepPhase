@@ -42,11 +42,11 @@ This command will vectorise and serialise the dataset. It will first filter and 
 If you want to download our serialise dataset it is provided [here]() (name: CrystalDataset.tar.bz2 and size: ~GB). You will need to uncompress this file using the command `tar -jxvf CrystalDataset.tar.bz2` at which point the serialised files will have a total size of ~GB.
 
 6. Training the neural network:
+Once you have the serialised dataset you can run the following command to train the PointNet neural network. At the end of a successful training you should get a weights.h5 file. 
 
+`python PointNet.py`
 
-
-
-
+If you want to download our trained weights file it is provided [here]() (name: weights.h5 and size: ~MB).
 
 
 
