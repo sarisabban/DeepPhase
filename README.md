@@ -1,8 +1,8 @@
 # DeepPhase
- Protein structure classification from crystal structure
+ Protein structure classification from crystal X-Ray diffraction patterns
 
 ## Description
-**DeepClass**: This project is an attempt to classify proteins (all Helix or all Sheet) from their X-Ray crystal reflection data.
+**DeepClass**: This project is an attempt to classify proteins (all Helix or all Sheet) from their X-Ray crystal diffraction patterns.
 
 **DeepPhase**: This project is an attempt to calculate the phase of each reflection point.
 
@@ -20,43 +20,26 @@
 
 3. Download a list of PDB IDs from RCSB.org in a file called **IDs.txt**, make sure the all the IDs are in a single line separated by a comma as per the RCSB standard.
 
-4. Compile the dataset using one of the following commands:
+4. Compile the dataset using one of the following command:
 
-`python crystal.py --Dataset PDBIDs.txt` or `python crystal.py -D PDBIDs.txt`
+`python crystal.py --Dataset IDs.txt` or `python crystal.py -D IDs.txt`
 
-**NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete.
+**NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete and up to 1TB memory.
 
-
---------------------- THIS SECTION HAS CHANGES -----------------------
-NOT USING ANY MORE !!!! CHECK !!!!!!
+If you want to download our dataset it will be provided here (CrystalDataset.csv ~247GB)
 
 
 
-If you want to compile a dataset of computer generated reflections from PDB files and augment each of these example then use the following command:
-
-`python crystal.py --Augment NUMBER` or `python crystal.py -A 10`
-
-Where NUMBER is the number of augments to each example.
-
-to export the augments as .mtz files use the collosing command:
-`python crystal.py --Augment NUMBER MTZ` or `python crystal.py -A 10 MTZ`
 
 
---------------------- THIS SECTION HAS CHANGES -----------------------
-Fix info about voxelisation
-Fix info about data generation
-Fix info about vectorisation
+
+
 
 
 5. Prepare dataset for training:
 For **DeepClass** (protein classification dataset):
-The dataset has to be segmented depending on the number of reflection points of each example into the following segmens: less the 1K, 1K-10K, 10K-500K, 500K-1M, and more than 1M. The 500k-1M and 1M+ will be voxelised while the others will not. Run the following command:
 
-`python crystal.py --Voxelise FILENAME.csv` or `python crystal.py -V FILENAME.csv`
-
-The dataset is too large to be loaded anywhere, therefore the segmented (and voxelised) datasets has to be vectorised (or serialised to save this step into files). This command will build the tensors, normalise, standerdise or one-hot encode them, then serialise them. That way the dataset can be loaded using less RAM memory. 
-
-`python crystal.py --Vectorise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -V DeepClass FILENAME.csv 10000`
+`python crystal.py --Serialise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -S DeepClass FILENAME.csv 10000`
 
 For the 10K-500K, 500K-1M, and 1M+ segments it is recommended to keep NUMBER_OF_POINTS to 10000 since we found this trains best in DeepClass. The other segments use 100.
 
