@@ -26,20 +26,22 @@
 
 **NOTE:** Depending on the number of structures you are using to compile the dataset this may take from several hours to several days to compelete and up to 1TB memory.
 
-If you want to download our dataset it will be provided [here]() (CrystalDataset.csv ~247GB)
+If you want to use our list of PDB IDs it is provided [here]() (name: IDs.txt and size: ~227KB)
+
+The dataset will compile the following information for each example: the PDB ID of the structure, its secondary structure classification (Helix or Sheet), the crystal space group, the unit cell, and finally each reflection point's X, Y, Z coordinates as well as each reflection point's Resolution and E-value. The reflection point features are referred to by shorthand here as XYZRE.
+
+If you want to download our compiled dataset it is provided [here]() (name: CrystalDataset.xz and size: ~35GB). You will need to uncompress it using the command `xz -d CrystalDataset.xz` at which point the CrystalDataset.csv dataset size will become ~247GB.
 
 5. Serialise the dataset:
-For **DeepClass** (protein classification dataset):
+Before training, the dataset needs to be serialised into train/valid/tests sets. This is a separate step to allow the use of a dataset generator to randomly sample features and push them through the neural network:
 
-`python crystal.py --Serialise TYPE FILENAME.csv NUMBER_OF_POINTS` or `python crystal.py -S DeepClass CrystalDataset.csv 300`
+`python crystal.py --Serialise TYPE FILENAME.csv NUMBER_OF_POINTS` example `python crystal.py -S DeepClass CrystalDataset.csv 300`
 
-This command will vectorises and serialise the dataset. It will first filter and collect all points between 2.8 < Resolution < 3.0, make the train/valid/tests set splits, then standerdise each set seperatly. finally it will compile all X, Y, Z, R, E features (each point's X, Y, Z coordinates as well as its Resolution and E-value) into tensors, then export each set as a serialised file. You should end up with the following files: X_train.h5, X_valid.h5, X_tests.h5, Y_train.h5, Y_valid.h5, Y_tests.h5 at the end.
+This command will vectorise and serialise the dataset. It will first filter and collect all points between 2.8 < Resolution < 3.0 and all structures that have less than 2 million total number of features (X+Y+Z+R+E). It will then make the train/valid/tests set splits and standerdise each set seperatly. Then it will compile all XYZRE features into the X features tensors (for each set) and the Helix and Sheet classes into the Y labels tensors (for each set). Finally it will export each set as a serialised file. You should end up with the following files: X_train.h5, X_valid.h5, X_tests.h5, Y_train.h5, Y_valid.h5, Y_tests.h5 at the end. This computation is RAM heavy and might require up to 1TB RAM.
 
+If you want to download our serialise dataset it is provided [here]() (name: CrystalDataset.tar.bz2 and size: ~GB). You will need to uncompress this file using the command `tar -jxvf CrystalDataset.tar.bz2` at which point the serialised files will have a total size of ~GB.
 
-
-
-
-
+6. Training the neural network:
 
 
 
@@ -62,8 +64,9 @@ This command will vectorises and serialise the dataset. It will first filter and
 
 
 
-***THIS PROJECT IS STILL A WORK IN PROGRESS...***
-***THIS PROJECT IS STILL A WORK IN PROGRESS...***
+
+
+
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
 
 #TODO:
