@@ -21,8 +21,6 @@ parser.add_argument('-U', '--Setup'    , action='store_true', help='Compile a da
 parser.add_argument('-D', '--Dataset'  , nargs='+',           help='Compile a datset of protein reflections points, include a text file of PDB IDs')
 parser.add_argument('-V', '--Vectorise', nargs='+',           help='Vectorise the datset only')
 parser.add_argument('-S', '--Serialise', nargs='+',           help='Vectorise and serialise the datset')
-parser.add_argument('-A', '--Augment',   nargs='+',           help='Augment a .pdb file to different orientations and generate reflection data')
-parser.add_argument('-X', '--Voxelise',  nargs='+',           help='Voxelise the points of in a .csv file')
 parser.add_argument('-G', '--Generator', nargs='+',           help='Generate batches of data and push them through the network on the fly')
 args = parser.parse_args()
 
@@ -362,644 +360,23 @@ class Dataset():
 						size.append(len(X))
 					os.remove(Pfilename)
 
-def Vectorise(filename='CrystalDataset.csv', max_size='15000', Type='DeepClass',
-	fp=np.float32, ip=np.int32):
-	'''
-	Since the .csv file for this dataset would require larger RAM than what is
-	currently available, yet we still need to train a network on as much
-	reflection points as possible this function is used to overcome this
-	limitation by randomly sampling max_size number of points from each example,
-	vectorise these points, normalise/standerdises them, construct the final
-	tensors then output the resulting tensors
-	'''
-	I = np.array([])
-	L = np.array([])
-	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-	max_size = int(max_size)
-	with open(filename, 'r') as f:
-		next(f)
-		for line in f:
-			line = line.strip().split(',')
-			# 1. Isolate PDB IDs and labels
-			I = np.append(I, np.array(str(line[0]), dtype=str))
-			L = np.append(L, np.array(str(line[1]), dtype=str))
-			S.append(np.array(int(line[2]), dtype=ip))
-			UCe.append(np.array([float(i) for i in line[3:6]], dtype=fp))
-			UCa.append(np.array([float(i) for i in line[6:9]], dtype=fp))
-			# 2. Isolate points
-			T = line[9:]
-			T = [float(i) for i in T]
-			# 3. Collect each point values
-			NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
-				in zip(T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
-			# 4. Sample points at regular intervals
-			T = NC[::len(NC)//max_size][:max_size]
-			assert len(T) == max_size, 'Max number of points incorrect'
-			T = [i for sub in T for i in sub]
-			# 5. Export points
-			X.append(np.array(T[0::6], dtype=fp))
-			Y.append(np.array(T[1::6], dtype=fp))
-			Z.append(np.array(T[2::6], dtype=fp))
-			R.append(np.array(T[3::6], dtype=fp))
-			E.append(np.array(T[4::6], dtype=fp))
-			P.append(np.array(T[5::6], dtype=fp))
-	# 6. Build arrays
-	I   = np.array(I)
-	S   = np.array(S)
-	UCe = np.array(UCe)
-	UCa = np.array(UCa)
-	X   = np.array(X)
-	Y   = np.array(Y)
-	Z   = np.array(Z)
-	R   = np.array(R)
-	E   = np.array(E)
-	P   = np.array(P)
-	if Type == 'deepclass' or Type == 'DeepClass':
-		# 7. One-Hot encoding and normalisation
-		''' Y labels '''
-		L[L=='Helix'] = 0
-		L[L=='Sheet'] = 1
-		Class = L.astype(np.int)
-		''' X features '''
-		categories = [sorted([x for x in range(1, 230+1)])]
-		S = S.reshape(-1, 1)
-		onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-		S = onehot_encoder.fit_transform(S)  #One-hot encode [Space Groups]
-		UCe = (UCe-np.mean(UCe))/np.std(UCe) #Standardise    [Unit Cell Edges]
-		UCa = (UCa-np.mean(UCa))/np.std(UCa) #Standardise    [Unit Cell Angle]
-		X = (X-np.mean(X))/np.std(X)         #Standardise    [X Coordinates]
-		Y = (Y-np.mean(Y))/np.std(Y)         #Standardise    [Y Coordinates]
-		Z = (Z-np.mean(Z))/np.std(Z)         #Standardise    [Z Coordinates]
-		R = (R-np.mean(R))/np.std(R)         #Standardise    [Resolution]
-		E = (E-np.mean(E))/np.std(E)         #Standardise    [E-value]
-		# 8. Construct tensors
-		Space = S
-		UnitC = np.concatenate([UCe, UCa], axis=1)
-		Coord = np.array([X, Y, Z, R, E])
-		Coord = np.swapaxes(Coord, 0, 2)
-		Coord = np.swapaxes(Coord, 0, 1)
-		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-		# 9. Shuffle examples
-		Coord, Class, UnitC, Space, I = shuffle(Coord, Class, UnitC, Space, I)
-		print('IDs      =', I.shape)
-		print('Space    =', Space.shape)
-		print('UnitCell =', UnitC.shape)
-		print('X Coord  =', Coord.shape)
-		print('Y Class  =', Class.shape)
-		return(Coord, Class, Space, UnitC, I)
-	elif Type == 'deepphase' or Type == 'DeepPhase':
-		# 7. One-Hot encoding and normalisation
-		''' Y labels '''
-		MIN, MAX, BIN = -4, 4, 8 # 8 bins for range -4 to 4
-		bins = np.array([MIN+i*((MAX-MIN)/BIN) for i in range(BIN+1)][1:-1])
-		P = np.digitize(P, bins)
-		Phase = np.eye(BIN)[P] # One-hot encode the bins
-		''' X features '''
-		categories = [sorted([x for x in range(1, 230+1)])]
-		S = S.reshape(-1, 1)
-		onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-		S = onehot_encoder.fit_transform(S)  #One-hot encode [Space Groups]
-		UCe = (UCe-np.mean(UCe))/np.std(UCe) #Standardise    [Unit Cell Edges]
-		UCa = (UCa-np.mean(UCa))/np.std(UCa) #Standardise    [Unit Cell Angle]
-		X = (X-np.mean(X))/np.std(X)         #Standardise    [X Coordinates]
-		Y = (Y-np.mean(Y))/np.std(Y)         #Standardise    [Y Coordinates]
-		Z = (Z-np.mean(Z))/np.std(Z)         #Standardise    [Z Coordinates]
-		R = (R-np.mean(R))/np.std(R)         #Standardise    [Resolution]
-		E = (E-np.mean(E))/np.std(E)         #Standardise    [E-value]
-		# 8. Construct tensors
-		Space = S
-		UnitC = np.concatenate([UCe, UCa], axis=1)
-		Coord = np.array([X, Y, Z, R, E])
-		Coord = np.swapaxes(Coord, 0, 2)
-		Coord = np.swapaxes(Coord, 0, 1)
-		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-		# 9. Shuffle examples
-		Coord, Phase, UnitC, Space, I = shuffle(Coord, Phase, UnitC, Space, I)
-		print('IDs      =', I.shape)
-		print('Space    =', Space.shape)
-		print('UnitCell =', UnitC.shape)
-		print('X Coord  =', Coord.shape)
-		print('Y Phase  =', Phase.shape)
-		return(Coord, Phase, Space, UnitC, I)
-
-def Voxel(filename='Gen.csv', show=False):
-	''' Reducing the number of reflection points by voxelisation '''
-	with open(filename) as f:
-		next(f)
-		for line in f:
-			line = line.strip().split(',')
-			I = line[0]
-			L = line[1]
-			S = line[2]
-			UCe = ','.join(line[3:6])
-			UCa = ','.join(line[6:9])
-			T = line[9:]
-			T = [float(i) for i in T]
-			if       len(T)/6 <= 1e3: size=0.001; fn='1k-.csv'      ; vox=False
-			if 1e3 < len(T)/6 <= 1e4: size=0.005; fn='1k-10k.csv'   ; vox=False
-			if 1e4 < len(T)/6 <= 1e5: size=0.005; fn='10k-100k.csv' ; vox=False
-			if 1e5 < len(T)/6 <= 2e5: size=0.008; fn='100k-200k.csv'; vox=True
-			if 2e5 < len(T)/6 <= 3e5: size=0.008; fn='200k-300k.csv'; vox=True
-			if 3e5 < len(T)/6 <= 4e5: size=0.008; fn='300k-400k.csv'; vox=True
-			if 4e5 < len(T)/6 <= 5e5: size=0.008; fn='400k-500k.csv'; vox=True
-			if 5e5 < len(T)/6 <= 1e6: size=0.008; fn='500k-1M.csv'  ; vox=True
-			if 1e6 < len(T)/6:        size=0.010; fn='1M+.csv'      ; vox=True
-			X = T[0::6]
-			Y = T[1::6]
-			Z = T[2::6]
-			R = T[3::6]
-			E = T[4::6]
-			P = T[5::6]
-			if vox == True:
-				with open('example.xyz', 'w') as F:
-					for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
-						line = '{} {} {} {} {} {}\n'.format(x, y, z, r, e, p)
-						F.write(line)
-				xyz = o3d.io.read_point_cloud('example.xyz', 'xyzrgb')
-				voxel_grid = o3d.geometry.VoxelGrid.\
-				create_from_point_cloud(xyz, size)
-				with open(fn, 'a') as F:
-					start = '{},{},{},{},{}'\
-					.format(I, L, S, UCe, UCa)
-					F.write(start)
-					for v in voxel_grid.get_voxels():
-						x = v.grid_index[0]*size
-						y = v.grid_index[1]*size
-						z = v.grid_index[2]*size
-						r = v.color[0]
-						e = v.color[1]
-						p = v.color[2]
-						line = ',{},{},{},{},{},{}'.format(x, y, z, r, e, p)
-						F.write(line)
-					F.write('\n')
-				os.remove('example.xyz')
-				print('Point Cloud {:<10,}   Voxelised {:<10,}   Save {}'\
-				.format(len(xyz.points), len(voxel_grid.get_voxels()), fn))
-			elif vox == False:
-				with open(fn, 'a') as F:
-					start = '{},{},{},{},{}'.format(I, L, S, UCe, UCa)
-					F.write(start)
-					for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
-						line = ',{},{},{},{},{},{}'.format(x, y, z, r, e, p)
-						F.write(line)
-					F.write('\n')
-				print('Point Cloud {:<10,}   Not Voxelised       Save {}'\
-				.format(len(X), fn))
-			if show == True and vox == True:
-				o3d.visualization.draw_geometries([xyz])
-				o3d.visualization.draw_geometries([voxel_grid])
-				X, Y, Z, R, E, P = [], [], [], [], [], []
-				for v in voxel_grid.get_voxels():
-					x = X.append(v.grid_index[0]*size)
-					y = Y.append(v.grid_index[1]*size)
-					z = Z.append(v.grid_index[2]*size)
-					r = R.append(v.color[0])
-					e = E.append(v.color[1])
-					p = P.append(v.color[2])
-				with open('Centers.xyz', 'w') as F:
-					for x, y, z, r, e, p in zip(X, Y, Z, R, E, P):
-						line = '{} {} {} {} {} {}\n'.format(x, y, z, r, e, p)
-						F.write(line)
-				xyz_centers = o3d.io.read_point_cloud('Centers.xyz', 'xyzrgb')
-				o3d.visualization.draw_geometries([xyz_centers])
-				os.remove('Centers.xyz')
-
-def discover(filename):
-	''' Discover dataset parameters '''
-	X_mean, Y_mean, Z_mean, R_mean, E_mean = [], [], [], [], []
-	X_len, Y_len, Z_len, R_len, E_len = [], [], [], [], []
-	X_SD, Y_SD, Z_SD, R_SD, E_SD = [], [], [], [], []
-	m = 0
-	head = False
-	with open(filename) as f:
-		# 1. Check and skip header line
-		if f.readline(6) == 'PDB_ID':
-			head = True
-			next(f)
-		for line in f:
-			# 2. Get data points
-			line = line.strip().split(',')
-			T = line[9:]
-			X = [float(x) for x in T[0::6]]
-			Y = [float(y) for y in T[1::6]]
-			Z = [float(z) for z in T[2::6]]
-			R = [float(r) for r in T[3::6]]
-			E = [float(e) for e in T[4::6]]
-			# 3. Find mean of each example
-			X_mean.append(statistics.mean(X))
-			Y_mean.append(statistics.mean(Y))
-			Z_mean.append(statistics.mean(Z))
-			R_mean.append(statistics.mean(R))
-			E_mean.append(statistics.mean(E))
-			# 4. Find standard deviation of each example
-			X_SD.append(statistics.stdev(X))
-			Y_SD.append(statistics.stdev(Y))
-			Z_SD.append(statistics.stdev(Z))
-			R_SD.append(statistics.stdev(R))
-			E_SD.append(statistics.stdev(E))
-			# 5. Find length of each example
-			X_len.append(len(X))
-			Y_len.append(len(Y))
-			Z_len.append(len(Z))
-			R_len.append(len(R))
-			E_len.append(len(E))
-			# 6. Count m number of examples
-			m += 1
-	# 7. Calculate fina dataset mean
-	meanX = sum([X_mean[i]*X_len[i] for i in range(m)])/sum(X_len)
-	meanY = sum([Y_mean[i]*Y_len[i] for i in range(m)])/sum(Y_len)
-	meanZ = sum([Z_mean[i]*Z_len[i] for i in range(m)])/sum(Z_len)
-	meanR = sum([R_mean[i]*R_len[i] for i in range(m)])/sum(R_len)
-	meanE = sum([E_mean[i]*E_len[i] for i in range(m)])/sum(E_len)
-	# 8. Calculate final dataset standard deviation
-	listX = [X_SD[i]**2*(X_len[i]-1) + (X_mean[i]-meanX)*X_mean[i]*X_len[i]\
-		for i in range(m)]
-	listY = [Y_SD[i]**2*(Y_len[i]-1) + (Y_mean[i]-meanY)*Y_mean[i]*Y_len[i]\
-		for i in range(m)]
-	listZ = [Z_SD[i]**2*(Z_len[i]-1) + (Z_mean[i]-meanZ)*Z_mean[i]*Z_len[i]\
-		for i in range(m)]
-	listR = [R_SD[i]**2*(R_len[i]-1) + (R_mean[i]-meanR)*R_mean[i]*R_len[i]\
-		for i in range(m)]
-	listE = [E_SD[i]**2*(E_len[i]-1) + (E_mean[i]-meanE)*E_mean[i]*E_len[i]\
-		for i in range(m)]
-	sdevX = math.sqrt(sum(listX)/(sum(X_len) - 1))
-	sdevY = math.sqrt(sum(listY)/(sum(Y_len) - 1))
-	sdevZ = math.sqrt(sum(listZ)/(sum(Z_len) - 1))
-	sdevR = math.sqrt(sum(listR)/(sum(R_len) - 1))
-	sdevE = math.sqrt(sum(listE)/(sum(E_len) - 1))
-	# 9. Generate indexes of lines (examples)
-	index = [x for x in range(m)]
-	# 10. If there is a dataset file with a header remove first line's index
-	if head == True: index = index[1:]
-	# 11. Shuffle line (example) indexes
-	random.shuffle(index)
-	# 12. Slice off train set
-	train = index[:math.ceil((m*80)/100)]
-	# 13. Slice off validation set
-	valid = index[-1*math.floor((m*20)/100):]
-	return(	m,
-			meanX, meanY, meanZ, meanR, meanE,
-			sdevX, sdevY, sdevZ, sdevR, sdevE,
-			train, valid)
-
-class DataGenerator(keras.utils.Sequence):
-	def __init__(self, filename='CrystalDataset.csv', batch_size=8,
-				Set='train', Type='Class', points=10, values=None):
-		''' Initialization '''
-		self.filename   = filename
-		self.Set        = Set
-		self.pts        = points
-		self.m          = values[0]
-		self.meanX      = values[1]
-		self.meanY      = values[2]
-		self.meanZ      = values[3]
-		self.meanR      = values[4]
-		self.meanE      = values[5]
-		self.sdevX      = values[6]
-		self.sdevY      = values[7]
-		self.sdevZ      = values[8]
-		self.sdevR      = values[9]
-		self.sdevE      = values[10]
-		self.train      = values[11]
-		self.valid      = values[12]
-		self.batch_size = batch_size
-		self.on_epoch_end()
-	def on_epoch_end(self):
-		''' Shuffle at end of epoch '''
-		if self.Set == 'train':
-			self.example_indexes = np.arange(len(self.train))
-			number_of_batches = len(self.example_indexes)/self.batch_size
-			self.number_of_batches = int(np.floor(number_of_batches))
-			np.random.shuffle(self.example_indexes)
-			random.shuffle(self.train)
-			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
-				filename=self.filename, max_size=self.pts, Type='Class',
-				index=self.train, m=self.m, meanX=self.meanX, meanY=self.meanY,
-				meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
-				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ,
-				sdevR=self.sdevR, sdevE=self.sdevE)
-		elif self.Set == 'valid':
-			self.example_indexes = np.arange(len(self.valid))
-			number_of_batches = len(self.example_indexes)/self.batch_size
-			self.number_of_batches = int(np.floor(number_of_batches))
-			np.random.shuffle(self.example_indexes)
-			random.shuffle(self.valid)
-			self.X, self.Y, self.Space, self.UnitC, self.I = self.Vectorise(
-				filename=self.filename, max_size=self.pts, Type='Class',
-				index=self.valid, m=self.m, meanX=self.meanX, meanY=self.meanY,
-				meanZ=self.meanZ, meanR=self.meanR, meanE=self.meanE,
-				sdevX=self.sdevX, sdevY=self.sdevY, sdevZ=self.sdevZ,
-				sdevR=self.sdevR, sdevE=self.sdevE)
-		else: print("[+] Set type string incorrect, choose 'train' or 'valid'")
-	def __len__(self):
-		''' Denotes the number of batches per epoch '''
-		return int(np.floor(len(self.X) / self.batch_size))
-	def __getitem__(self, index):
-		''' Generate one batch of data '''
-		batch_indexes = self.example_indexes[index*self.batch_size:\
-			(index+1)*self.batch_size]
-		batch_x = np.array([self.X[k] for k in batch_indexes])
-		batch_y = np.array([self.Y[k] for k in batch_indexes])
-		return batch_x, batch_y
-	def Vectorise(self, filename='CrystalDataset.csv', max_size='15000',
-		Type='DeepClass', fp=np.float32, ip=np.int32, index=[1, 2, 3], m=None,
-		meanX=None, meanY=None, meanZ=None, meanR=None, meanE=None,
-		sdevX=None, sdevY=None, sdevZ=None, sdevR=None, sdevE=None):
-		''' This function randomly samples points from each example '''
-		I = np.array([])
-		L = np.array([])
-		S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-		max_size = int(max_size)
-		with open(filename, 'r') as f:
-			for pos, line in enumerate(f):
-				if pos in index:
-					line = line.strip().split(',')
-					# 1. Isolate PDB IDs and labels
-					I = np.append(I, np.array(str(line[0]), dtype=str))
-					L = np.append(L, np.array(str(line[1]), dtype=str))
-					S.append(np.array(int(line[2]), dtype=ip))
-					UCe.append(np.array([float(i) for i in line[3:6]],dtype=fp))
-					UCa.append(np.array([float(i) for i in line[6:9]],dtype=fp))
-					# 2. Isolate points
-					T = line[9:]
-					T = [float(i) for i in T]
-					# 3. Collect each point values
-					NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
-						in zip(T[0::6],T[1::6],T[2::6],T[3::6],T[4::6],T[5::6])]
-					# 4. Random sampling of points
-					T = [random.choice(NC) for x in range(max_size)]
-					assert len(T) == max_size, 'Max number of points incorrect'
-					T = [i for sub in T for i in sub]
-					# 5. Export points
-					X.append(np.array(T[0::6], dtype=fp))
-					Y.append(np.array(T[1::6], dtype=fp))
-					Z.append(np.array(T[2::6], dtype=fp))
-					R.append(np.array(T[3::6], dtype=fp))
-					E.append(np.array(T[4::6], dtype=fp))
-					P.append(np.array(T[5::6], dtype=fp))
-		# 6. Build arrays
-		I   = np.array(I)
-		S   = np.array(S)
-		UCe = np.array(UCe)
-		UCa = np.array(UCa)
-		X   = np.array(X)
-		Y   = np.array(Y)
-		Z   = np.array(Z)
-		R   = np.array(R)
-		E   = np.array(E)
-		P   = np.array(P)
-		if Type == 'class' or Type == 'Class':
-			# 7. One-Hot encoding and normalisation
-			''' Y labels '''
-			L[L=='Helix'] = 0
-			L[L=='Sheet'] = 1
-			Class = L.astype(np.int)
-			''' X features '''
-			categories = [sorted([x for x in range(1, 230+1)])]
-			S = S.reshape(-1, 1)
-			onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-			S = onehot_encoder.fit_transform(S) #One-hot encode[Space Groups]
-			UCe = (UCe-np.mean(UCe))/np.std(UCe)#Standardise   [Unit Cell Edges]
-			UCa = (UCa-np.mean(UCa))/np.std(UCa)#Standardise   [Unit Cell Angle]
-			X = (X-meanX)/sdevX                 #Standardise    [X Coordinates]
-			Y = (Y-meanY)/sdevY                 #Standardise    [Y Coordinates]
-			Z = (Z-meanZ)/sdevZ                 #Standardise    [Z Coordinates]
-			R = (R-meanR)/sdevR                 #Standardise    [Resolution]
-			E = (E-meanE)/sdevE                 #Standardise    [E-value]
-			# 8. Construct tensors
-			Space = S
-			UnitC = np.concatenate([UCe, UCa], axis=1)
-			Coord = np.array([X, Y, Z, R, E])
-			Coord = np.swapaxes(Coord, 0, 2)
-			Coord = np.swapaxes(Coord, 0, 1)
-			S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-			# 9. Shuffle examples
-			Coord, Class, UnitC, Space, I = shuffle(Coord,Class,UnitC,Space,I)
-			return(Coord, Class, Space, UnitC, I)
-		elif Type == 'phase' or Type == 'Phase':
-			# 7. One-Hot encoding and normalisation
-			''' Y labels '''
-			MIN, MAX, BIN = -4, 4, 8 # 8 bins for range -4 to 4
-			bins = np.array([MIN+i*((MAX-MIN)/BIN) for i in range(BIN+1)][1:-1])
-			P = np.digitize(P, bins)
-			Phase = np.eye(BIN)[P] # One-hot encode the bins
-			''' X features '''
-			categories = [sorted([x for x in range(1, 230+1)])]
-			S = S.reshape(-1, 1)
-			onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-			S = onehot_encoder.fit_transform(S) #One-hot encode[Space Groups]
-			UCe = (UCe-np.mean(UCe))/np.std(UCe)#Standardise   [Unit Cell Edges]
-			UCa = (UCa-np.mean(UCa))/np.std(UCa)#Standardise   [Unit Cell Angle]
-			X = (X-meanX)/sdevX                 #Standardise   [X Coordinates]
-			Y = (Y-meanY)/sdevY                 #Standardise   [Y Coordinates]
-			Z = (Z-meanZ)/sdevZ                 #Standardise   [Z Coordinates]
-			R = (R-meanR)/sdevR                 #Standardise   [Resolution]
-			E = (E-meanE)/sdevE                 #Standardise   [E-value]
-			# 8. Construct tensors
-			Space = S
-			UnitC = np.concatenate([UCe, UCa], axis=1)
-			Coord = np.array([X, Y, Z, R, E])
-			Coord = np.swapaxes(Coord, 0, 2)
-			Coord = np.swapaxes(Coord, 0, 1)
-			S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-			# 9. Shuffle examples
-			Coord, Phase, UnitC, Space, I = shuffle(Coord,Phase,UnitC,Space,I)
-			return(Coord, Phase, Space, UnitC, I)
-
-def Vectorise(filename='CrystalDataset.csv', max_size='1600', data='DeepClass'):
-	''' Selects points, splits sets, standerdises, then vectorises dataset '''
-	I = np.array([])
-	L = np.array([])
-	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-	max_size = int(max_size)
-	with open(filename, 'r') as f:
-		next(f)
-		for line in f:
-			line = line.strip().split(',')
-			# 1. Isolate points
-			T = line[9:]
-			T = [float(i) for i in T]
-			# 2. Collect each point values
-			NC = [(x, y, z, r, e, p) for x, y, z, r, e, p
-				in zip(T[0::6], T[1::6], T[2::6], T[3::6], T[4::6], T[5::6])]
-			# 3. Select only points where 2.8 < R < 3
-			NC = [point for point in NC if 2.8 <= point[3] <= 3.0]
-			# 4. Sample points at regular intervals to collect max_size
-			if len(NC) != 0 and len(NC) >= max_size:
-				T = NC[::len(NC)//max_size][:max_size]
-				# 5. Isolate PDB IDs and labels
-				I = np.append(I, np.array(str(line[0]), dtype=str))
-				L = np.append(L, np.array(str(line[1]), dtype=str))
-				S.append(np.array(int(line[2]), dtype=np.int32))
-				UCe.append(np.array([float(i) for i in line[3:6]]))
-				UCa.append(np.array([float(i) for i in line[6:9]]))
-			else: continue
-			assert len(T) == max_size, 'Max number of points incorrect'
-			T = [i for sub in T for i in sub]
-			# 6. Export points
-			X.append(np.array(T[0::6]))
-			Y.append(np.array(T[1::6]))
-			Z.append(np.array(T[2::6]))
-			R.append(np.array(T[3::6]))
-			E.append(np.array(T[4::6]))
-			P.append(np.array(T[5::6]))
-	# 7. Structure encoding
-	''' DeepClass Y labels '''
-	L[L=='Helix'] = 0
-	L[L=='Sheet'] = 1
-	L = L.astype(np.int)
-	# 8. Build arrays
-	I   = np.array(I)
-	S   = np.array(S)
-	UCe = np.array(UCe)
-	UCa = np.array(UCa)
-	X   = np.array(X)
-	Y   = np.array(Y)
-	Z   = np.array(Z)
-	R   = np.array(R)
-	E   = np.array(E)
-	P   = np.array(P)
-	# 9. Shuffle but maintain order
-	L, I, S, UCe, UCa, X, Y, Z, R, E, P = \
-	shuffle(L, I, S, UCe, UCa, X, Y, Z, R, E, P)
-	# 10. Split train/valid/tests sets
-	train_to   = math.floor((len(X)*60)/100)
-	valid_from = train_to
-	valid_to   = train_to + math.floor((len(X)*20)/100)
-	tests_from = valid_to
-	L_train = L[:train_to]
-	L_valid = L[valid_from:valid_to]
-	L_tests = L[tests_from:]
-	I_train = I[:train_to]
-	I_valid = I[valid_from:valid_to]
-	I_tests = I[tests_from:]
-	S_train = S[:train_to]
-	S_valid = S[valid_from:valid_to]
-	S_tests = S[tests_from:]
-	UCe_train = UCe[:train_to]
-	UCe_valid = UCe[valid_from:valid_to]
-	UCe_tests = UCe[tests_from:]
-	UCa_train = UCa[:train_to]
-	UCa_valid = UCa[valid_from:valid_to]
-	UCa_tests = UCa[tests_from:]
-	X_train = X[:train_to]
-	X_valid = X[valid_from:valid_to]
-	X_tests = X[tests_from:]
-	Y_train = Y[:train_to]
-	Y_valid = Y[valid_from:valid_to]
-	Y_tests = Y[tests_from:]
-	Z_train = Z[:train_to]
-	Z_valid = Z[valid_from:valid_to]
-	Z_tests = Z[tests_from:]
-	R_train = R[:train_to]
-	R_valid = R[valid_from:valid_to]
-	R_tests = R[tests_from:]
-	E_train = E[:train_to]
-	E_valid = E[valid_from:valid_to]
-	E_tests = E[tests_from:]
-	P_train = P[:train_to]
-	P_valid = P[valid_from:valid_to]
-	P_tests = P[tests_from:]
-	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
-	# 11. Label and feature one-hot encoding standardisation
-	''' X features '''
-	categories = [sorted([x for x in range(1, 230+1)])]
-	onehot_encoder = OneHotEncoder(sparse=False, categories=categories)
-	S_train = S_train.reshape(-1, 1)
-	S_valid = S_valid.reshape(-1, 1)
-	S_tests = S_tests.reshape(-1, 1)
-	S_train = onehot_encoder.fit_transform(S_train)
-	S_valid = onehot_encoder.fit_transform(S_valid)
-	S_tests = onehot_encoder.fit_transform(S_tests)
-	UCe_train = (UCe_train-np.mean(UCe_train))/np.std(UCe_train)
-	UCe_valid = (UCe_valid-np.mean(UCe_valid))/np.std(UCe_valid)
-	UCe_tests = (UCe_tests-np.mean(UCe_tests))/np.std(UCe_tests)
-	UCa_train = (UCa_train-np.mean(UCa_train))/np.std(UCa_train)
-	UCa_valid = (UCa_valid-np.mean(UCa_valid))/np.std(UCa_valid)
-	UCa_tests = (UCa_tests-np.mean(UCa_tests))/np.std(UCa_tests)
-	X_train = (X_train-np.mean(X_train))/np.std(X_train)
-	X_valid = (X_valid-np.mean(X_valid))/np.std(X_valid)
-	X_tests = (X_tests-np.mean(X_tests))/np.std(X_tests)
-	Y_train = (Y_train-np.mean(Y_train))/np.std(Y_train)
-	Y_valid = (Y_valid-np.mean(Y_valid))/np.std(Y_valid)
-	Y_tests = (Y_tests-np.mean(Y_tests))/np.std(Y_tests)
-	Z_train = (Z_train-np.mean(Z_train))/np.std(Z_train)
-	Z_valid = (Z_valid-np.mean(Z_valid))/np.std(Z_valid)
-	Z_tests = (Z_tests-np.mean(Z_tests))/np.std(Z_tests)
-	R_train = (R_train-np.mean(R_train))/np.std(R_train)
-	R_valid = (R_valid-np.mean(R_valid))/np.std(R_valid)
-	R_tests = (R_tests-np.mean(R_tests))/np.std(R_tests)
-	E_train = (E_train-np.mean(E_train))/np.std(E_train)
-	E_valid = (E_valid-np.mean(E_valid))/np.std(E_valid)
-	E_tests = (E_tests-np.mean(E_tests))/np.std(E_tests)
-	''' DeepPhase Y labels '''
-	MIN, MAX, BIN = -4, 4, 8 # 8 bins for range -4 to 4
-	bins = np.array([MIN+i*((MAX-MIN)/BIN) for i in range(BIN+1)][1:-1])
-	P_train = np.digitize(P_train, bins)
-	P_valid = np.digitize(P_valid, bins)
-	P_tests = np.digitize(P_tests, bins)
-	P_train = np.eye(BIN)[P_train]
-	P_valid = np.eye(BIN)[P_valid]
-	P_tests = np.eye(BIN)[P_tests]
-	# 12. Construct tensors
-	Ident_train = I_train
-	Ident_valid = I_valid
-	Ident_tests = I_tests
-	Class_train = L_train
-	Class_valid = L_valid
-	Class_tests = L_tests
-	Space_train = S_train
-	Space_valid = S_valid
-	Space_tests = S_tests
-	UnitC_train = np.concatenate([UCe_train, UCa_train], axis=1)
-	UnitC_valid = np.concatenate([UCe_valid, UCa_valid], axis=1)
-	UnitC_tests = np.concatenate([UCe_tests, UCa_tests], axis=1)
-	Coord_train = np.array([X_train, Y_train, Z_train, R_train, E_train])
-	Coord_train = np.swapaxes(Coord_train, 0, 2)
-	Coord_train = np.swapaxes(Coord_train, 0, 1)
-	Coord_valid = np.array([X_valid, Y_valid, Z_valid, R_valid, E_valid])
-	Coord_valid = np.swapaxes(Coord_valid, 0, 2)
-	Coord_valid = np.swapaxes(Coord_valid, 0, 1)
-	Coord_tests = np.array([X_tests, Y_tests, Z_tests, R_tests, E_tests])
-	Coord_tests = np.swapaxes(Coord_tests, 0, 2)
-	Coord_tests = np.swapaxes(Coord_tests, 0, 1)
-	Phase_train = P_train
-	Phase_valid = P_valid
-	Phase_tests = P_tests
-	if data == 'DeepClass':
-		return( Coord_train, Coord_valid, Coord_tests,
-				Class_train, Class_valid, Class_tests)
-	elif data == 'DeepPhase':
-		return( Coord_train, Coord_valid, Coord_tests,
-				Phase_train, Phase_valid, Phase_tests)
-
-
-
-
-
-
-
-
-
-
-''' LATEST EXPERIMENT '''
-
-
-def Vectorise_last(	filename='CrystalDataset.csv',
-				data='DeepClass',
-				point_size=None,
-				batch_size=None):
+def Vectorise(filename='CrystalDataset.csv', point_size=300, data='DeepClass'):
 	'''
 	Vectorises the dataset by spliting it into train/valid/tests sets, filter
 	points between 2.8 < R < 3.0, standerdise each set seperatly, compiles them
 	into tendors, then export them
 	'''
+	ignore = [37, 41, 56, 67, 70, 73, 86, 93, 94, 140, 153, 159, 160, 162, 165, 174, 181, 183, 185, 187, 207, 214, 226, 232, 250, 260, 273, 276, 282, 305, 306, 309, 310, 312, 313, 316, 317, 325, 328, 343, 350, 356, 367, 371, 384, 388, 398, 399, 400, 401, 402, 403, 405, 411, 412, 413, 414, 415, 416, 417, 419, 436, 440, 451, 462, 470, 474, 475, 498, 506, 533, 534, 535, 538, 539, 552, 554, 555, 561, 570, 577, 610, 617, 618, 621, 683, 692, 705, 711, 736, 743, 745, 760, 761, 774, 775, 784, 790, 797, 799, 803, 852, 853, 877, 884, 885, 886, 887, 910, 925, 927, 928, 933, 935, 940, 941, 943, 944, 945, 946, 948, 962, 972, 973, 974, 975, 980, 981, 984, 985, 986, 987, 988, 1003, 1021, 1029, 1040, 1042, 1048, 1051, 1082, 1085, 1086, 1088, 1103, 1104, 1108, 1121, 1148, 1159, 1160, 1176, 1177, 1179, 1180, 1181, 1182, 1184, 1208, 1209, 1212, 1234, 1240, 1263, 1267, 1275, 1292, 1297, 1300, 1301, 1303, 1304, 1306, 1314, 1318, 1329, 1331, 1335, 1337, 1347, 1352, 1353, 1370, 1371, 1372, 1375, 1381, 1382, 1384, 1385, 1388, 1409, 1413, 1414, 1416, 1447, 1463, 1509, 1529, 1530, 1531, 1537, 1538, 1539, 1540, 1541, 1550, 1570, 1572, 1608, 1629, 1655, 1658, 1676, 1677, 1678, 1692, 1693, 1697, 1700, 1707, 1736, 1792, 1793, 1816, 1823, 1824, 1828, 1829, 1830, 1835, 1839, 1842, 1852, 1853, 1854, 1856, 1857, 1858, 1859, 1865, 1867, 1868, 1869, 1870, 1876, 1889, 1895, 1901, 1902, 1908, 1917, 1919, 1922, 1923, 1924, 1941, 1947, 1954, 1955, 1956, 1957, 1961, 1965, 1966, 1969, 1989, 1992, 1993, 2004, 2015, 2016, 2018, 2019, 2020, 2021, 2022, 2023, 2026, 2052, 2058, 2076, 2079, 2082, 2084, 2089, 2097, 2099, 2100, 2101, 2114, 2126, 2131, 2134, 2135, 2137, 2141, 2199, 2207, 2211, 2215, 2216, 2221, 2222, 2223, 2224, 2225, 2226, 2228, 2231, 2233, 2237, 2245, 2275, 2291, 2293, 2294, 2301, 2307, 2310, 2317, 2318, 2322, 2324, 2344, 2353, 2355, 2356, 2362, 2375, 2381, 2382, 2383, 2386, 2404, 2409, 2419, 2428, 2450, 2458, 2471, 2475, 2481, 2511, 2525, 2526, 2537, 2550, 2551, 2554, 2555, 2563, 2565, 2573, 2574, 2577, 2582, 2590, 2595, 2606, 2607, 2610, 2613, 2614, 2620, 2644, 2654, 2662, 2665, 2668, 2669, 2677, 2681, 2682, 2683, 2684, 2685, 2686, 2689, 2690, 2693, 2701, 2706, 2710, 2720, 2729, 2748, 2750, 2752, 2756, 2757, 2759, 2767, 2769, 2783, 2785, 2790, 2791, 2793, 2795, 2796, 2798, 2800, 2806, 2813, 2814, 2820, 2821, 2822, 2823, 2824, 2826, 2835, 2836, 2845, 2848, 2857, 2872, 2874, 2875, 2876, 2880, 2885, 2887, 2890, 2920, 2922, 2932, 2939, 2940, 2953, 2965, 2971, 2985, 2987, 3004, 3011, 3013, 3043, 3063, 3070, 3084, 3094, 3101, 3110, 3120, 3121, 3124, 3151, 3154, 3158, 3159, 3161, 3165, 3217, 3218, 3228, 3230, 3231, 3232, 3233, 3234, 3235, 3242, 3249, 3282, 3302, 3310, 3315, 3337, 3357, 3375, 3382, 3384, 3385, 3386, 3387, 3419, 3420, 3421, 3424, 3435, 3447, 3449, 3450, 3473, 3474, 3475, 3476, 3479, 3480, 3499, 3500, 3503, 3509, 3516, 3541, 3544, 3552, 3554, 3576, 3577, 3578, 3582, 3588, 3589, 3591, 3610, 3621, 3651, 3653, 3655, 3656, 3671, 3672, 3673, 3688, 3689, 3690, 3699, 3700, 3706, 3707, 3708, 3710, 3729, 3730, 3731, 3732, 3740, 3776, 3779, 3799, 3800, 3801, 3824, 3826, 3827, 3828, 3829, 3830, 3834, 3852, 3874, 3894, 3939, 3942, 3966, 3980, 3982, 3984, 3985, 3989, 3990, 3991, 3992, 3993, 3995, 4000, 4004, 4009, 4010, 4011, 4031, 4033, 4043, 4046, 4050, 4084, 4097, 4100, 4123, 4124, 4125, 4152, 4168, 4169, 4170, 4171, 4177, 4181, 4182, 4183, 4185, 4189, 4201, 4218, 4219, 4223, 4232, 4235, 4241, 4242, 4245, 4280, 4293, 4294, 4299, 4312, 4314, 4315, 4322, 4323, 4333, 4337, 4350, 4353, 4364, 4367, 4372, 4377, 4379, 4387, 4394, 4402, 4410, 4440, 4454, 4458, 4459, 4460, 4462, 4493, 4495, 4505, 4513, 4517, 4519, 4520, 4538, 4539, 4560, 4567, 4568, 4571, 4592, 4595, 4606, 4608, 4609, 4622, 4629, 4633, 4634, 4635, 4638, 4640, 4653, 4658, 4661, 4676, 4684, 4689, 4697, 4711, 4754, 4755, 4756, 4757, 4759, 4761, 4767, 4811, 4826, 4830, 4831, 4837, 4843, 4851, 4852, 4856, 4857, 4881, 4883, 4886, 4887, 4896, 4898, 4910, 4922, 4924, 4927, 4929, 4934, 4935, 4937, 4940, 4941, 4942, 4943, 4944, 4945, 4947, 4957, 5040, 5051, 5052, 5057, 5058, 5067, 5068, 5074, 5088, 5090, 5096, 5097, 5098, 5111, 5122, 5145, 5164, 5165, 5169, 5170, 5175, 5177, 5180, 5182, 5197, 5230, 5231, 5233, 5235, 5241, 5255, 5258, 5272, 5282, 5288, 5293, 5299, 5306, 5321, 5322, 5323, 5325, 5347, 5348, 5356, 5357, 5358, 5361, 5367, 5371, 5375, 5376, 5378, 5379, 5380, 5385, 5386, 5387, 5390, 5410, 5416, 5419, 5424, 5433, 5441, 5445, 5448, 5472, 5493, 5494, 5507, 5508, 5509, 5510, 5511, 5529, 5535, 5541, 5547, 5554, 5566, 5581, 5585, 5608, 5621, 5645, 5646, 5647, 5649, 5656, 5666, 5667, 5676, 5679, 5680, 5685, 5686, 5693, 5695, 5696, 5787, 5800, 5804, 5805, 5815, 5816, 5825, 5826, 5827, 5834, 5838, 5839, 5840, 5867, 5871, 5873, 5915, 5923, 5939, 5943, 5946, 5951, 5954, 5961, 5970, 5979, 5981, 6027, 6032, 6084, 6094, 6099, 6106, 6118, 6132, 6145, 6150, 6153, 6159, 6160, 6234, 6238, 6245, 6267, 6269, 6271, 6273, 6275, 6283, 6285, 6287, 6303, 6308, 6322, 6324, 6332, 6342, 6351, 6370, 6374, 6376, 6377, 6397, 6462, 6463, 6466, 6468, 6471, 6488, 6490, 6503, 6527, 6533, 6535, 6550, 6564, 6570, 6573, 6576, 6579, 6598, 6603, 6613, 6617, 6623, 6630, 6663, 6664, 6667, 6668, 6671, 6676, 6677, 6688, 6700, 6705, 6709, 6723, 6736, 6739, 6743, 6745, 6753, 6755, 6757, 6760, 6763, 6766, 6768, 6769, 6773, 6783, 6785, 6786, 6789, 6797, 6804, 6808, 6811, 6845, 6846, 6904, 6907, 6911, 6913, 6941, 6948, 6949, 6953, 6954, 6955, 6956, 6957, 6958, 6960, 6961, 6962, 6966, 6999, 7002, 7004, 7005, 7016, 7017, 7019, 7053, 7060, 7078, 7096, 7101, 7175, 7176, 7205, 7209, 7254, 7260, 7261, 7270, 7284, 7297, 7299, 7303, 7304, 7306, 7308, 7309, 7310, 7312, 7313, 7316, 7326, 7328, 7329, 7333, 7334, 7335, 7339, 7346, 7351, 7352, 7374, 7378, 7382, 7384, 7389, 7391, 7395, 7397, 7399, 7400, 7417, 7419, 7420, 7422, 7423, 7424, 7426, 7427, 7428, 7429, 7431, 7432, 7443, 7444, 7445, 7446, 7447, 7452, 7454, 7458, 7460, 7461, 7462, 7463, 7465, 7471, 7491, 7497, 7498, 7499, 7505, 7516, 7517, 7527, 7528, 7529, 7536, 7537, 7540, 7543, 7553, 7560, 7566, 7567, 7568, 7571, 7593, 7595, 7596, 7618, 7622, 7649, 7651, 7653, 7655, 7656, 7657, 7658, 7660, 7663, 7677, 7683, 7704, 7734, 7735, 7738, 7740, 7771, 7772, 7780, 7803, 7804, 7805, 7806, 7807, 7809, 7811, 7813, 7814, 7815, 7816, 7819, 7824, 7825, 7830, 7837, 7839, 7840, 7845, 7846, 7848, 7851, 7853, 7854, 7855, 7856, 7857, 7858, 7860, 7862, 7863, 7866, 7877, 7878, 7887, 7904, 7908, 7909, 7911, 7916, 7917, 7918, 7920, 7921, 7922, 7939, 7940, 7967, 7970, 7975, 7983, 7986, 7988, 7990, 7991, 7993, 7994, 7996, 7998, 8000, 8005, 8012, 8015, 8016, 8019, 8024, 8025, 8027, 8028, 8038, 8039, 8042, 8051, 8087, 8088, 8089, 8092, 8108, 8109, 8113, 8114, 8117, 8124, 8142, 8149, 8157, 8161, 8170, 8171, 8172, 8177, 8186, 8205, 8225, 8226, 8233, 8239, 8247, 8248, 8271, 8273, 8275, 8291, 8292, 8293, 8304, 8320, 8321, 8322, 8323, 8328, 8329, 8331, 8333, 8340, 8342, 8344, 8345, 8348, 8357, 8392, 8401, 8410, 8411, 8414, 8415, 8417, 8427, 8432, 8434, 8435, 8440, 8445, 8461, 8465, 8480, 8484, 8491, 8511, 8527, 8532, 8534, 8539, 8543, 8557, 8562, 8565, 8566, 8576, 8591, 8594, 8596, 8599, 8600, 8602, 8618, 8626, 8629, 8649, 8655, 8658, 8659, 8662, 8663, 8665, 8668, 8672, 8707, 8709, 8727, 8806, 8807, 8845, 8860, 8878, 8900, 8908, 8946, 8985, 8993, 8997, 9000, 9022, 9027, 9031, 9059, 9064, 9068, 9071, 9078, 9088, 9120, 9137, 9140, 9151, 9156, 9161, 9178, 9181, 9182, 9183, 9184, 9187, 9192, 9193, 9194, 9197, 9241, 9246, 9256, 9270, 9280, 9294, 9311, 9312, 9320, 9332, 9334, 9354, 9355, 9356, 9357, 9358, 9360, 9374, 9380, 9383, 9386, 9424, 9426, 9427, 9436, 9440, 9443, 9447, 9449, 9470, 9474, 9539, 9540, 9542, 9559, 9563, 9564, 9565, 9572, 9575, 9576, 9578, 9581, 9584, 9590, 9592, 9598, 9630, 9644, 9646, 9649, 9664, 9671, 9672, 9677, 9679, 9689, 9694, 9711, 9714, 9724, 9725, 9751, 9771, 9783, 9787, 9794, 9799, 9811, 9818, 9830, 9847, 9848, 9850, 9851, 9866, 9867, 9868, 9882, 9885, 9895, 9905, 9910, 9919, 9921, 9925, 9928, 9929, 9930, 9931, 9932, 9938, 9939, 9944, 9945, 9946, 9952, 9969, 9973, 9980, 9981, 9983, 9984, 9985, 10018, 10019, 10020, 10022, 10030, 10050, 10057, 10061, 10066, 10097, 10102, 10127, 10129, 10156, 10158, 10166, 10170, 10178, 10186, 10187, 10188, 10190, 10195, 10199, 10203, 10205, 10222, 10237, 10240, 10241, 10244, 10245, 10246, 10247, 10248, 10249, 10250, 10251, 10252, 10253, 10254, 10257, 10258, 10260, 10270, 10271, 10282, 10283, 10285, 10297, 10313, 10317, 10350, 10358, 10359, 10366, 10367, 10370, 10371, 10374, 10375, 10386, 10391, 10392, 10393, 10394, 10395, 10397, 10401, 10404, 10412, 10414, 10416, 10430, 10431, 10442, 10443, 10444, 10445, 10446, 10447, 10448, 10449, 10451, 10452, 10453, 10454, 10455, 10457, 10458, 10459, 10460, 10461, 10462, 10463, 10465, 10467, 10468, 10469, 10470, 10471, 10472, 10473, 10474, 10475, 10476, 10486, 10494, 10495, 10496, 10501, 10502, 10503, 10504, 10522, 10530, 10532, 10540, 10542, 10545, 10547, 10553, 10570, 10571, 10573, 10575, 10585, 10586, 10591, 10594, 10601, 10616, 10630, 10635, 10642, 10643, 10644, 10649, 10652, 10653, 10707, 10714, 10723, 10726, 10730, 10750, 10763, 10765, 10766, 10768, 10771, 10772, 10773, 10774, 10786, 10787, 10790, 10800, 10807, 10858, 10861, 10889, 10919, 10920, 10921, 10922, 10941, 10955, 11019, 11020, 11028, 11032, 11033, 11054, 11055, 11068, 11087, 11094, 11105, 11137, 11138, 11142, 11143, 11151, 11153, 11161, 11163, 11169, 11173, 11188, 11201, 11213, 11223, 11229, 11230, 11231, 11235, 11255, 11278, 11281, 11345, 11346, 11347, 11362, 11363, 11364, 11366, 11377, 11390, 11394, 11403, 11415, 11417, 11418, 11429, 11456, 11458, 11460, 11461, 11462, 11465, 11475, 11476, 11494, 11497, 11500, 11510, 11515, 11518, 11548, 11550, 11551, 11562, 11563, 11583, 11584, 11607, 11615, 11617, 11618, 11626, 11634, 11636, 11638, 11651, 11677, 11688, 11709, 11716, 11736, 11740, 11741, 11743, 11760, 11770, 11784, 11787, 11790, 11813, 11816, 11818, 11858, 11859, 11860, 11861, 11862, 11864, 11865, 11866, 11867, 11891, 11892, 11899, 11917, 11918, 11922, 11925, 11935, 11942, 11955, 11956, 11990, 11996, 12010, 12020, 12023, 12024, 12031, 12033, 12036, 12042, 12052, 12056, 12066, 12069, 12070, 12072, 12079, 12089, 12090, 12097, 12123, 12146, 12165, 12176, 12177, 12180, 12208, 12211, 12213, 12218, 12225, 12240, 12243, 12247, 12250, 12251, 12253, 12298, 12299, 12314, 12319, 12322, 12336, 12355, 12361, 12368, 12372, 12378, 12380, 12381, 12382, 12394, 12399, 12401, 12407, 12410, 12411, 12412, 12413, 12433, 12480, 12484, 12491, 12494, 12498, 12503, 12504, 12509, 12510, 12525, 12526, 12532, 12533, 12548, 12556, 12558, 12568, 12576, 12602, 12604, 12605, 12621, 12643, 12645, 12671, 12677, 12683, 12685, 12694, 12695, 12696, 12700, 12702, 12705, 12706, 12730, 12732, 12736, 12737, 12738, 12790, 12796, 12800, 12804, 12807, 12816, 12826, 12827, 12844, 12845, 12868, 12872, 12914, 12920, 12923, 12924, 12928, 12929, 12931, 12932, 12946, 12960, 12963, 12995, 12997, 13017, 13018, 13021, 13033, 13034, 13043, 13068, 13089, 13101, 13117, 13126, 13148, 13153, 13192, 13194, 13219, 13252, 13276, 13289, 13303, 13306, 13307, 13315, 13316, 13322, 13323, 13329, 13330, 13337, 13338, 13341, 13343, 13353, 13355, 13370, 13373, 13380, 13395, 13398, 13424, 13436, 13441, 13448, 13469, 13479, 13481, 13485, 13490, 13497, 13512, 13526, 13547, 13550, 13551, 13558, 13572, 13573, 13585, 13587, 13603, 13626, 13629, 13647, 13659, 13687, 13704, 13706, 13708, 13710, 13714, 13719, 13725, 13726, 13737, 13738, 13745, 13827, 13838, 13842, 13858, 13860, 13863, 13875, 13876, 13897, 13907, 13910, 13913, 13914, 13916, 13927, 13930, 13941, 13944, 13946, 13957, 13958, 13959, 13969, 13974, 13975, 13991, 13999, 14012, 14015, 14016, 14043, 14048, 14052, 14063, 14075, 14080, 14101, 14102, 14104, 14114, 14126, 14140, 14152, 14155, 14157, 14169, 14173, 14178, 14180, 14183, 14186, 14192, 14205, 14223, 14224, 14225, 14226, 14233, 14243, 14247, 14257, 14260, 14263, 14274, 14296, 14305, 14334, 14336, 14349, 14360, 14368, 14369, 14388, 14392, 14399, 14400, 14412, 14413, 14415, 14430, 14437, 14440, 14441, 14442, 14448, 14449, 14450, 14458, 14461, 14465, 14466, 14474, 14485, 14488, 14495, 14516, 14517, 14535, 14597, 14640, 14697, 14698, 14708, 14712, 14717, 14718, 14719, 14748, 14787, 14791, 14794, 14797, 14798, 14809, 14814, 14820, 14822, 14823, 14828, 14833, 14849, 14851, 14852, 14863, 14870, 14883, 14884, 14887, 14892, 14894, 14896, 14900, 14922, 14939, 14942, 14950, 14960, 14995, 15056, 15058, 15059, 15068, 15070, 15108, 15139, 15142, 15163, 15164, 15185, 15190, 15197, 15198, 15230, 15277, 15312, 15314, 15330, 15354, 15358, 15365, 15366, 15370, 15371, 15372, 15373, 15374, 15377, 15378, 15384, 15388, 15392, 15415, 15420, 15426, 15428, 15435, 15446, 15454, 15480, 15482, 15486, 15487, 15488, 15489, 15499, 15501, 15516, 15548, 15555, 15566, 15588, 15612, 15621, 15623, 15632, 15660, 15667, 15669, 15689, 15694, 15697, 15711, 15712, 15720, 15726, 15741, 15743, 15765, 15767, 15769, 15770, 15783, 15796, 15805, 15806, 15808, 15809, 15828, 15830, 15835, 15836, 15875, 15877, 15880, 15905, 15907, 15918, 15922, 15939, 15940, 16008, 16015, 16027, 16028, 16073, 16083, 16087, 16088, 16091, 16093, 16094, 16095, 16096, 16101, 16151, 16155, 16156, 16163, 16164, 16170, 16171, 16235, 16237, 16238, 16251, 16263, 16264, 16267, 16276, 16277, 16278, 16279, 16281, 16282, 16285, 16286, 16287, 16314, 16341, 16347, 16348, 16367, 16374, 16392, 16396, 16420, 16422, 16423, 16442, 16443, 16448, 16455, 16462, 16472, 16474, 16479, 16488, 16503, 16506, 16511, 16513, 16524, 16525, 16526, 16556, 16597, 16604, 16605, 16624, 16632, 16647, 16662, 16673, 16674, 16691, 16695, 16711, 16712, 16715, 16720, 16730, 16732, 16734, 16745, 16748, 16777, 16778, 16800, 16802, 16809, 16810, 16819, 16826, 16830, 16831, 16832, 16837, 16856, 16864, 16870, 16878, 16913, 16914, 16916, 16918, 16930, 16931, 16947, 16957, 16975, 16981, 16982, 16983, 16993, 16996, 16998, 16999, 17000, 17002, 17022, 17078, 17098, 17106, 17114, 17119, 17129, 17142, 17166, 17184, 17188, 17208, 17215, 17219, 17222, 17245, 17263, 17266, 17270, 17279, 17280, 17283, 17286, 17290, 17299, 17301, 17302, 17303, 17327, 17346, 17348, 17355, 17359, 17360, 17361, 17373, 17392, 17394, 17395, 17409, 17410, 17412, 17502, 17530, 17535, 17536, 17537, 17538, 17548, 17560, 17563, 17566, 17571, 17575, 17579, 17590, 17592, 17594, 17597, 17599, 17600, 17604, 17607, 17618, 17622, 17643, 17650, 17703, 17707, 17710, 17717, 17725, 17729, 17730, 17733, 17801, 17804, 17823, 17834, 17843, 17848, 17849, 17851, 17852, 17853, 17872, 17873, 17880, 17881, 17887, 17889, 17900, 17901, 17915, 17928, 17930, 17931, 17932, 17936, 17939, 17955, 17986, 18018, 18057, 18075, 18085, 18093, 18095, 18096, 18099, 18103, 18108, 18115, 18116, 18117, 18122, 18123, 18157, 18175, 18176, 18177, 18187, 18189, 18214, 18216, 18230, 18233, 18244, 18248, 18249, 18309, 18319, 18337, 18358, 18360, 18363, 18364, 18370, 18374, 18384, 18388, 18412, 18413, 18414, 18433, 18435, 18437, 18438, 18443, 18450, 18451, 18474, 18477, 18491, 18544, 18552, 18556, 18565, 18566, 18590, 18609, 18617, 18628, 18642, 18643, 18674, 18685, 18687, 18688, 18690, 18691, 18695, 18696, 18705, 18708, 18713, 18716, 18724, 18728, 18736, 18755, 18760, 18777, 18786, 18792, 18798, 18810, 18823, 18824, 18841, 18842, 18845, 18878, 18884, 18914, 18919, 18925, 18932, 18941, 18945, 18950, 18953, 18954, 18955, 18958, 18960, 18964, 18965, 18966, 18967, 18969, 18972, 18996, 19002, 19011, 19013, 19033, 19034, 19035, 19059, 19084, 19086, 19123, 19124, 19132, 19135, 19145, 19163, 19165, 19166, 19187, 19190, 19196, 19199, 19201, 19202, 19212, 19214, 19217, 19230, 19231, 19233, 19234, 19235, 19236, 19238, 19240, 19246, 19248, 19249, 19273, 19274, 19280, 19284, 19285, 19286, 19287, 19288, 19296, 19298, 19299, 19300, 19301, 19302, 19304, 19341, 19354, 19355, 19356, 19378, 19380, 19384, 19386, 19391, 19392, 19396, 19399, 19401, 19407, 19413, 19425, 19426, 19428, 19429, 19434, 19445, 19446, 19451, 19464, 19470, 19488, 19489, 19491, 19506, 19507, 19508, 19518, 19519, 19523, 19526, 19527, 19529, 19531, 19532, 19541, 19543, 19544, 19552, 19558, 19590, 19591, 19606, 19609, 19610, 19612, 19613, 19631, 19633, 19645, 19646, 19673, 19679, 19686, 19694, 19699, 19704, 19707, 19725, 19727, 19728, 19729, 19731, 19737, 19738, 19739, 19744, 19746, 19818, 19832, 19833, 19834, 19837, 19844, 19846, 19853, 19868, 19906, 19907, 19908, 19916, 19934, 19978, 19986, 19990, 19991, 19994, 20004, 20008, 20020, 20026, 20027, 20046, 20051, 20054, 20059, 20060, 20063, 20071, 20073, 20076, 20087, 20088, 20118, 20140, 20147, 20149, 20155, 20158, 20159, 20160, 20161, 20173, 20176, 20177, 20179, 20226, 20228, 20230, 20233, 20238, 20243, 20252, 20253, 20254, 20257, 20260, 20274, 20294, 20306, 20310, 20311, 20315, 20335, 20341, 20352, 20354, 20357, 20370, 20374, 20384, 20386, 20387, 20395, 20414, 20419, 20430, 20448, 20454, 20455, 20457, 20474, 20475, 20477, 20478, 20486, 20487, 20488, 20490, 20512, 20516, 20523, 20552, 20586, 20587, 20588, 20589, 20590, 20591, 20593, 20594, 20609, 20619, 20632, 20651, 20652, 20672, 20678, 20681, 20682, 20683, 20684, 20685, 20686, 20687, 20688, 20689, 20690, 20692, 20693, 20694, 20695, 20696, 20697, 20698, 20699, 20700, 20701, 20702, 20705, 20706, 20707, 20708, 20709, 20710, 20711, 20713, 20715, 20716, 20717, 20718, 20719, 20720, 20721, 20722, 20724, 20725, 20726, 20727, 20728, 20730, 20733, 20734, 20735, 20736, 20737, 20738, 20740, 20741, 20742, 20744, 20745, 20746, 20747, 20748, 20749, 20750, 20751, 20752, 20754, 20755, 20756, 20757, 20758, 20759, 20760, 20761, 20762, 20764, 20765, 20766, 20767, 20768, 20769, 20770, 20771, 20772, 20773, 20774, 20775, 20776, 20777, 20778, 20779, 20780, 20781, 20782, 20783, 20784, 20785, 20786, 20787, 20788, 20789, 20790, 20792, 20793, 20795, 20796, 20797, 20798, 20799, 20800, 20802, 20803, 20804, 20805, 20806, 20807, 20808, 20809, 20810, 20811, 20812, 20813, 20814, 20815, 20816, 20817, 20818, 20819, 20820, 20821, 20822, 20823, 20824, 20825, 20826, 20827, 20828, 20829, 20831, 20832, 20833, 20834, 20835, 20836, 20837, 20838, 20839, 20840, 20842, 20844, 20845, 20846, 20847, 20848, 20849, 20852, 20853, 20854, 20856, 20857, 20858, 20859, 20860, 20861, 20862, 20863, 20864, 20865, 20866, 20867, 20868, 20869, 20870, 20871, 20872, 20874, 20875, 20876, 20877, 20878, 20879, 20880, 20881, 20882, 20883, 20884, 20885, 20891, 20892, 20893, 20894, 20904, 20912, 20929, 20932, 20937, 20938, 20942, 20954, 20961, 20962, 20971, 20972, 20979, 20994, 21006, 21007, 21020, 21034, 21040, 21041, 21042, 21043, 21044, 21045, 21047, 21050, 21052, 21061, 21064, 21093, 21098, 21099, 21100, 21116, 21117, 21120, 21125, 21126, 21127, 21128, 21130, 21131, 21132, 21133, 21139, 21140, 21142, 21146, 21162, 21180, 21186, 21202, 21218, 21219, 21222, 21225, 21262, 21271, 21290, 21299, 21302, 21304, 21305, 21306, 21307, 21317, 21320, 21322, 21328, 21330, 21351, 21364, 21366, 21369, 21370, 21378, 21382, 21385, 21406, 21442, 21447, 21449, 21450, 21451, 21452, 21473, 21475, 21476, 21477, 21478, 21479, 21481, 21482, 21483, 21486, 21487, 21489, 21490, 21504, 21520, 21528, 21541, 21550, 21564, 21582, 21593, 21594, 21602, 21615, 21617, 21620, 21621, 21622, 21628, 21636, 21653, 21658, 21667, 21684, 21685, 21686, 21690, 21704, 21710, 21711, 21713, 21714, 21715, 21716, 21717, 21718, 21721, 21728, 21729, 21730, 21731, 21732, 21733, 21737, 21738, 21739, 21740, 21741, 21742, 21743, 21745, 21764, 21765, 21776, 21788, 21790, 21791, 21792, 21794, 21796, 21797, 21821, 21822, 21823, 21824, 22000, 22023, 22045, 22131, 22202, 22204, 22205, 22208, 22209, 22210, 22212, 22214, 22215, 22216, 22218, 22222, 22225, 22226, 22227, 22228, 22229, 22230, 22231, 22233, 22235, 22236, 22252, 22261, 22263, 22294, 22298, 22299, 22300, 22301, 22309, 22311, 22312, 22313, 22314, 22315, 22316, 22331, 22340, 22378, 22389, 22391, 22397, 22402, 22415, 22429, 22433, 22435, 22436, 22437, 22439, 22442, 22448, 22450, 22474, 22482, 22497, 22500, 22509, 22520, 22530, 22537, 22545, 22562, 22580, 22600, 22612, 22615, 22620, 22639, 22643, 22651, 22652, 22664, 22689, 22700, 22713, 22725, 22726, 22805, 22822, 22838, 22844, 22845, 22846, 22850, 22856, 22862, 22865, 22867, 22899, 22908, 22926, 22975, 22977, 22981, 22993, 23000, 23001, 23002, 23007, 23008, 23043, 23050, 23061, 23072, 23078, 23084, 23085, 23086, 23087, 23088, 23089, 23090, 23098, 23103, 23119, 23129, 23130, 23131, 23136, 23139, 23142, 23143, 23145, 23150, 23154, 23157, 23176, 23189, 23192, 23195, 23244, 23262, 23282, 23297, 23299, 23302, 23303, 23305, 23310, 23312, 23324, 23327, 23332, 23347, 23352, 23355, 23361, 23387, 23388, 23397, 23434, 23435, 23445, 23450, 23463, 23474, 23498, 23500, 23513, 23515, 23516, 23539, 23544, 23560, 23563, 23565, 23603, 23645, 23651, 23656, 23678, 23699, 23704, 23707, 23733, 23734, 23735, 23757, 23788, 23790, 23808, 23810, 23826, 23841, 23845, 23866, 23867, 23869, 23878, 23894, 23900, 23907, 23908, 23909, 23924, 23930, 23938, 23943, 23953, 23966, 23971, 23978, 23998, 24005, 24019, 24048, 24053, 24054, 24067, 24069, 24070, 24071, 24079, 24086, 24089, 24090, 24091, 24093, 24094, 24099, 24101, 24102, 24112, 24117, 24118, 24134, 24138, 24162, 24163, 24166, 24179, 24187, 24192, 24217, 24222, 24231, 24243, 24264, 24267, 24269, 24282, 24294, 24296, 24300, 24351, 24352, 24353, 24354, 24356, 24357, 24361, 24362, 24364, 24365, 24397, 24407, 24408, 24410, 24465, 24467, 24469, 24470, 24471, 24484, 24486, 24488, 24491, 24531, 24558, 24573, 24619, 24622, 24625, 24635, 24641, 24643, 24645, 24646, 24678, 24680, 24710, 24725, 24735, 24751, 24770, 24771, 24778, 24786, 24789, 24793, 24811, 24815, 24837, 24855, 24861, 24874, 24875, 24876, 24878, 24879, 24880, 24881, 24882, 24883, 24884, 24885, 24887, 24899, 24900, 24918, 24928, 24934, 24935, 24940, 24951, 24956, 24957, 24960, 24964, 24970, 24972, 24973, 24976, 24978, 24981, 24982, 24983, 24997, 24998, 25002, 25015, 25016, 25019, 25026, 25027, 25028, 25046, 25059, 25074, 25121, 25125, 25130, 25134, 25146, 25151, 25168, 25175, 25195, 25196, 25197, 25199, 25221, 25226, 25231, 25246, 25252, 25262, 25276, 25279, 25295, 25296, 25297, 25302, 25304, 25315, 25336, 25341, 25343, 25346, 25348, 25378, 25386, 25387, 25389, 25390, 25392, 25394, 25397, 25398, 25403, 25408, 25415, 25416, 25417, 25418, 25419, 25425, 25438, 25457, 25463, 25468, 25470, 25474, 25500, 25506, 25508, 25509, 25511, 25516, 25519, 25528, 25533, 25535, 25564, 25569, 25571, 25580, 25586, 25587, 25588, 25629, 25646, 25648, 25661, 25664, 25671, 25672, 25675, 25676, 25677, 25693, 25717, 25720, 25722, 25725, 25778, 25783, 25790, 25791, 25798, 25800, 25805, 25816, 25817, 25828, 25829, 25830, 25831, 25839, 25861, 25864, 25865, 25896, 25908, 25915, 25917, 25918, 25920, 25922, 25923, 25924, 25925, 25926, 25927, 25928, 25929, 25930, 25951, 25978, 25979, 25987, 25991, 26001, 26002, 26004, 26005, 26007, 26024, 26027, 26035, 26052, 26053, 26054, 26056, 26066, 26087, 26089, 26101, 26113, 26131, 26154, 26160, 26161, 26163, 26182, 26190, 26213, 26228, 26232, 26244, 26275, 26283, 26314, 26326, 26327, 26329, 26340, 26341, 26349, 26355, 26361, 26366, 26367, 26375, 26385, 26388, 26394, 26415, 26435, 26436, 26446, 26449, 26460, 26473, 26496, 26519, 26526, 26535, 26557, 26583, 26584, 26594, 26597, 26609, 26616, 26621, 26623, 26624, 26635, 26649, 26669, 26670, 26688, 26698, 26699, 26726, 26728, 26729, 26734, 26746, 26747, 26751] 
+	total = 26754
 	I = np.array([])
 	L = np.array([])
 	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+	count = 0
 	with open(filename, 'r') as f:
 		next(f)
-		for line in f:
+		print('[+] Now at step 1, 2, 3, 4, 5, and 6')
+		for line in tqdm.tqdm(f, total=total):
+			count += 1
 			line = line.strip().split(',')
 			# 1. Isolate points
 			T = line[9:]
@@ -1010,12 +387,12 @@ def Vectorise_last(	filename='CrystalDataset.csv',
 			# 3. Select only points where 2.8 < R < 3
 			NC = [point for point in NC if 2.8 <= point[3] <= 3.0]
 			# 4. Collect examples if they have points within R range
-			if 10000000 >= len(NC) >= point_size:
+			if len(NC) >= point_size and count not in ignore:
 				T = NC
 				# 5. Isolate PDB IDs and labels
 				I = np.append(I, np.array(str(line[0]), dtype=str))
 				L = np.append(L, np.array(str(line[1]), dtype=str))
-				S.append(np.array(int(line[2]), dtype=np.int32))
+				S.append(np.array(int(line[2])))
 				UCe.append(np.array([float(i) for i in line[3:6]]))
 				UCa.append(np.array([float(i) for i in line[6:9]]))
 			else: continue
@@ -1027,12 +404,14 @@ def Vectorise_last(	filename='CrystalDataset.csv',
 			R.append(T[3::6])
 			E.append(T[4::6])
 			P.append(T[5::6])
+	print('[+] Now at step 7')
 	# 7. Structure encoding
 	''' DeepClass Y labels '''
 	L[L=='Helix'] = 0
 	L[L=='Sheet'] = 1
 	L = L.astype(np.int)
-# 8. Build arrays
+	print('[+] Now at step 8')
+	# 8. Build arrays
 	I   = np.array(I)
 	S   = np.array(S)
 	UCe = np.array(UCe)
@@ -1049,9 +428,11 @@ def Vectorise_last(	filename='CrystalDataset.csv',
 	E   = pd.DataFrame.to_numpy(E)
 	P   = pd.DataFrame(P)
 	P   = pd.DataFrame.to_numpy(P)
+	print('[+] Now at step 9')
 	# 9. Shuffle but maintain order
 	L, I, S, UCe, UCa, X, Y, Z, R, E, P = \
 	shuffle(L, I, S, UCe, UCa, X, Y, Z, R, E, P)
+	print('[+] Now at step 10')
 	# 10. Split train/valid/tests sets
 	train_to   = math.floor((len(X)*60)/100)
 	valid_from = train_to
@@ -1091,6 +472,7 @@ def Vectorise_last(	filename='CrystalDataset.csv',
 	P_valid = P[valid_from:valid_to]
 	P_tests = P[tests_from:]
 	S, UCe, UCa, X, Y, Z, R, E, P = [], [], [], [], [], [], [], [], []
+	print('[+] Now at step 11')
 	# 11. Label and feature one-hot encoding standardisation
 	''' X features '''
 	categories = [sorted([x for x in range(1, 230+1)])]
@@ -1137,6 +519,7 @@ def Vectorise_last(	filename='CrystalDataset.csv',
 	P_train = np.eye(BIN)[P_train]
 	P_valid = np.eye(BIN)[P_valid]
 	P_tests = np.eye(BIN)[P_tests]
+	print('[+] Now at step 12')
 	# 12. Construct tensors
 	Ident_train = I_train
 	Ident_valid = I_valid
@@ -1153,134 +536,30 @@ def Vectorise_last(	filename='CrystalDataset.csv',
 	Coord_train = np.array([X_train, Y_train, Z_train, R_train, E_train])
 	Coord_train = np.swapaxes(Coord_train, 0, 2)
 	Coord_train = np.swapaxes(Coord_train, 0, 1)
+	X_train, Y_train, Z_train, R_train, E_train = [], [], [], [], []
 	Coord_valid = np.array([X_valid, Y_valid, Z_valid, R_valid, E_valid])
 	Coord_valid = np.swapaxes(Coord_valid, 0, 2)
 	Coord_valid = np.swapaxes(Coord_valid, 0, 1)
+	X_valid, Y_valid, Z_valid, R_valid, E_valid = [], [], [], [], []
 	Coord_tests = np.array([X_tests, Y_tests, Z_tests, R_tests, E_tests])
 	Coord_tests = np.swapaxes(Coord_tests, 0, 2)
 	Coord_tests = np.swapaxes(Coord_tests, 0, 1)
+	X_tests, Y_tests, Z_tests, R_tests, E_tests = [], [], [], [], []
 	Phase_train = P_train
 	Phase_valid = P_valid
 	Phase_tests = P_tests
+	P_train, P_valid, P_tests = [], [], []
+	print('[+] Now at step 13')
 	# 13. Export dataset
-	if data == 'DeepClass' and point_size == None and batch_size == None:
+	if data == 'DeepClass':
 		return( Coord_train, Coord_valid, Coord_tests,
 				Class_train, Class_valid, Class_tests)
-	elif data == 'DeepClass' and isinstance(point_size, int)\
-		and batch_size == None:
-		select = point_size
-		P = []
-		for p in Coord_train:
-			p = p[~np.isnan(p).any(axis=1)]
-			if select <= len(p):
-				p = p[::len(p)//select][:select]
-				p = np.ndarray.tolist(p)
-				P.append(p)
-			else: continue
-		Coord_train = np.array(P)
-		P = []
-		for p in Coord_valid:
-			p = p[~np.isnan(p).any(axis=1)]
-			if select <= len(p):
-				p = p[::len(p)//select][:select]
-				p = np.ndarray.tolist(p)
-				P.append(p)
-			else: continue
-		Coord_valid = np.array(P)
-		P = []
-		for p in Coord_tests:
-			p = p[~np.isnan(p).any(axis=1)]
-			if select <= len(p):
-				p = p[::len(p)//select][:select]
-				p = np.ndarray.tolist(p)
-				P.append(p)
-			else: continue
-		Coord_tests = np.array(P)
-		return( Coord_train, Coord_valid, Coord_tests,
-				Class_train, Class_valid, Class_tests)
-	elif data == 'DeepClass' and isinstance(point_size, int)\
-		and isinstance(batch_size, int):
-		select = point_size
-		P = []
-		for p in Coord_train:
-			p = p[~np.isnan(p).any(axis=1)]
-			if select <= len(p):
-				p = [random.choice(p) for x in range(select)]
-				P.append(p)
-			else: continue
-		Coord_train = np.array(P)
-		P = []
-		for p in Coord_valid:
-			p = p[~np.isnan(p).any(axis=1)]
-			if select <= len(p):
-				p = [random.choice(p) for x in range(select)]
-				P.append(p)
-			else: continue
-		Coord_valid = np.array(P)
-		P = []
-		for p in Coord_tests:
-			p = p[~np.isnan(p).any(axis=1)]
-			if select <= len(p):
-				p = [random.choice(p) for x in range(select)]
-				P.append(p)
-			else: continue
-		Coord_tests = np.array(P)
-		segment = lambda lst, sz: [lst[i:i+sz] for i in range(0, len(lst), sz)]
-		train_example_indexes = list(np.arange(len(Coord_train)))
-		train_batch_indexes = segment(train_example_indexes, batch_size)
-		valid_example_indexes = list(np.arange(len(Coord_valid)))
-		valid_batch_indexes = segment(valid_example_indexes, batch_size)
-		tests_example_indexes = list(np.arange(len(Coord_tests)))
-		tests_batch_indexes = segment(tests_example_indexes, batch_size)
-		x_batches_r = []
-		y_batches_r = []
-		for i in train_batch_indexes:
-			x = np.array([Coord_train[k] for k in i])
-			y = np.array([Class_train[k] for k in i])
-			x_batches_r.append(x)
-			y_batches_r.append(y)
-		x_batches_v = []
-		y_batches_v = []
-		for i in valid_batch_indexes:
-			x = np.array([Coord_valid[k] for k in i])
-			y = np.array([Class_valid[k] for k in i])
-			x_batches_v.append(x)
-			y_batches_v.append(y)
-		x_batches_t = []
-		y_batches_t = []
-		for i in tests_batch_indexes:
-			x = np.array([Coord_tests[k] for k in i])
-			y = np.array([Class_tests[k] for k in i])
-			x_batches_t.append(x)
-			y_batches_t.append(y)
-		return( x_batches_r, y_batches_r,
-				x_batches_v, y_batches_v,
-				x_batches_t, y_batches_t)
-	elif data == 'DeepPhase'and point_size == None and batch_size == None:
+	elif data == 'DeepPhase':
 		return( Coord_train, Coord_valid, Coord_tests,
 				Phase_train, Phase_valid, Phase_tests)
-	#=======================================================
-	#=======================================================
-	#=======================================================
-	elif data == 'DeepPhase' and isinstance(point_size, int)\
-		and batch_size == None:
-		print('NOT YET CODED')
-	elif data == 'DeepPhase' and isinstance(point_size, int)\
-		and isinstance(batch_size, list):
-		print('NOT YET CODED')
-
-Coord_train, Coord_valid, Coord_tests, Class_train, Class_valid, Class_tests = Vectorise()
-with h5py.File('X_train.h5','w') as x_train:dset=x_train.create_dataset('default', data=Coord_train)
-with h5py.File('X_valid.h5','w') as x_valid:dset=x_valid.create_dataset('default', data=Coord_valid)
-with h5py.File('X_tests.h5','w') as x_tests:dset=x_tests.create_dataset('default', data=Coord_tests)
-with h5py.File('Y_train.h5','w') as y_train:dset=y_train.create_dataset('default', data=Class_train)
-with h5py.File('Y_valid.h5','w') as y_valid:dset=y_valid.create_dataset('default', data=Class_valid)
-with h5py.File('Y_tests.h5','w') as y_tests:dset=y_tests.create_dataset('default', data=Class_tests)
-
-
 
 class DataGenerator(keras.utils.Sequence):
-	''' DataGenerator for Vectorise_last() '''
+	''' DataGenerator '''
 	def __init__(self, X, Y, batch_size, feature_size):
 		''' Initialization '''
 		self.X = X
@@ -1313,8 +592,6 @@ class DataGenerator(keras.utils.Sequence):
 		batch_x = np.array(x)
 		return batch_x, batch_y
 
-''' LATEST EXPERIMENT '''
-
 def main():
 	if  args.Setup:
 		setup()
@@ -1324,38 +601,18 @@ def main():
 	elif args.Vectorise:
 		Type = sys.argv[2]
 		File = sys.argv[3]
-		size = int(sys.argv[4])
-		X, Y, S, U, I = Vectorise(filename=File, max_size=size, Type=Type)
+		Size = int(sys.argv[4])
+		Coord_train, Coord_valid, Coord_tests, Class_train, Class_valid, Class_tests = Vectorise(filename=File, point_size=Size, data=Type)
 	elif args.Serialise:
 		Type = sys.argv[2]
 		File = sys.argv[3]
-		size = int(sys.argv[4])
-		X, Y, S, U, I = Vectorise(filename=File, max_size=size, Type=Type)
-		I = [n.encode('ascii', 'ignore') for n in I]
-		with h5py.File('X.h5','w') as x:dset=x.create_dataset('default',data=X)
-		with h5py.File('Y.h5','w') as y:dset=y.create_dataset('default',data=Y)
-	elif args.Augment:
-		PDB_MTZ = 'PDB'
-		d = 2.5
-		n = int(sys.argv[2])
-		augment = True
-		D = Dataset(PDB_MTZ=PDB_MTZ, n=n, d=d, augment=augment)
-		try:
-			sys.argv[3]=='MTZ'
-			D.run(EXP_MTZ=True)
-			os.remove('CrystalDataset.csv')
-		except:
-			D.run()
-	elif args.Voxelise:
-		Voxel(filename=sys.argv[2], size=sys.argv[3])
-	elif args.Generator:
-		FN = sys.argv[2]
-		Type = sys.argv[3]
-		pts = sys.argv[4]
-		values = discover(FN)
-		with Pool(2) as p:
-			train, valid = p.starmap(DataGenerator,\
-			[(FN, 32, 'train', Type, pts, values),\
-			(FN, 32, 'valid', Type, pts, values)])
+		Size = int(sys.argv[4])
+		Coord_train, Coord_valid, Coord_tests, Class_train, Class_valid, Class_tests = Vectorise(filename=File, point_size=Size, data=Type)
+		with h5py.File('X_train.h5','w') as x_train:dset=x_train.create_dataset('default', data=Coord_train)
+		with h5py.File('X_valid.h5','w') as x_valid:dset=x_valid.create_dataset('default', data=Coord_valid)
+		with h5py.File('X_tests.h5','w') as x_tests:dset=x_tests.create_dataset('default', data=Coord_tests)
+		with h5py.File('Y_train.h5','w') as y_train:dset=y_train.create_dataset('default', data=Class_train)
+		with h5py.File('Y_valid.h5','w') as y_valid:dset=y_valid.create_dataset('default', data=Class_valid)
+		with h5py.File('Y_tests.h5','w') as y_tests:dset=y_tests.create_dataset('default', data=Class_tests)
 
 if __name__ == '__main__': main()
