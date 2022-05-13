@@ -39,7 +39,7 @@ Before training, the dataset needs to be serialised into train/valid/tests sets.
 
 This command will vectorise and serialise the dataset. It will first filter and collect all points between 2.8 < Resolution < 3.0 and all structures that have less than 2 million total number of features (X+Y+Z+R+E). It will then make the train/valid/tests set splits and standerdise each set seperatly. Then it will compile all XYZRE features into the X features tensors (for each set) and the Helix and Sheet classes into the Y labels tensors (for each set). Finally it will export each set as a serialised file. You should end up with the following files: X_train.h5, X_valid.h5, X_tests.h5, Y_train.h5, Y_valid.h5, Y_tests.h5 at the end. This computation is RAM heavy and might require up to 1TB RAM.
 
-If you want to download our serialise dataset it is provided [here]() (name: CrystalDataset_serialised.tar.bz2 and size: ~2GB). You will need to uncompress this file using the command `tar -jxvf CrystalDataset_serialised.tar.bz2` at which point the serialised files will have a total size of ~52GB.
+If you want to download our serialise dataset it is provided [here](https://www.dropbox.com/s/fxvf7joc84z3wl0/CrystalDataset_serialised.tar.bz2?dl=0) (name: CrystalDataset_serialised.tar.bz2 and size: ~2GB). You will need to uncompress this file using the command `tar -jxvf CrystalDataset_serialised.tar.bz2` at which point the serialised files will have a total size of ~52GB.
 
 The serialised dataset will have the following shapes:
 
