@@ -86,9 +86,6 @@ If you want to download our trained weights file it is provided [here]() (name: 
 ***THIS PROJECT IS STILL A WORK IN PROGRESS...***
 
 #TODO:
-* UPLOAD PDB IDs text file and provide LINK
-* UPLOAD DATASET and provide LINK
-* UPLOAD DEEPCLASS SERIALISED DATASET and provide LINK
 * UPLOAD DEEPCLASS WEIGHTS and provide LINK
 * For **DeepPhase** (reflection point phase prediction dataset):
 * Perform Prediction:
