@@ -30,7 +30,7 @@ If you want to use our list of PDB IDs it is provided [here](https://www.dropbox
 
 The dataset will compile the following information for each example: the PDB ID of the structure, its secondary structure classification (Helix or Sheet), the crystal space group, the unit cell, and finally each reflection point's X, Y, Z coordinates as well as each reflection point's Resolution and E-value. The reflection point features are referred to by shorthand here as XYZRE.
 
-If you want to download our compiled dataset it is provided [here]() (name: CrystalDataset.csv.xz and size: ~37GB). You will need to uncompress it using the command `xz -d CrystalDataset.xz` at which point the CrystalDataset.csv dataset size will become ~250GB.
+If you want to download our compiled dataset it is provided [here](https://www.dropbox.com/s/vbu0cbzaa9do63u/CrystalDataset.csv.xz?dl=0) (name: CrystalDataset.csv.xz and size: ~37GB). You will need to uncompress it using the command `xz -d CrystalDataset.xz` at which point the CrystalDataset.csv dataset size will become ~250GB.
 
 5. Serialise the dataset:
 Before training, the dataset needs to be serialised into train/valid/tests sets. This is a separate step to allow the use of a dataset generator to randomly sample features and push them through the neural network:
