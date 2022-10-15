@@ -68,7 +68,9 @@ If you want to download our trained weights file it is provided [here]() (name: 
 
 
 
+## Latest Result:
 
+![Alt Text](Classification_Training.jpg)
 
 
 
